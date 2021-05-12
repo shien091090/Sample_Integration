@@ -2,3 +2,8 @@ Library/
 ProjectSettings/
 Packages/
 Temp/
+.vs/
+obj/
+Logs/
+Assembly-CSharp.csproj
+Sample_Integration.sln
