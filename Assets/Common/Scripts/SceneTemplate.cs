@@ -14,83 +14,147 @@ public class SceneTemplate
         SimpleCenter //僅定位至中心點
     }
 
+    public enum ComponentType
+    {
+        AddComponent,
+        DefaultComponent
+    }
+
+    public class ComponentSetting
+    {
+        public Type comp;
+        public ComponentType type;
+        public Action<Component> metaSetting;
+    }
+
     [MenuItem("CreateTemplateScene/TesterButton")]
     public static void CreateTemplateScene_ButtonTester()
     {
-        Debug.Log("Test");
-
-        //GameObject _canvasGo = new GameObject("Canvas_Main", typeof(Canvas));
-        //Canvas _canvasComp = _canvasGo.GetComponent<Canvas>();
-        //_canvasComp.renderMode = RenderMode.ScreenSpaceCamera;
-        //_canvasComp.worldCamera = Camera.main;
-
-        GameObject _canvasGo = PushComponent<Canvas>("Canvas_Main",
-            metaSetting: (canvas) =>
+        GameObject _canvasGo = PushComponent("Canvas_Main", componentSetting:
+            new ComponentSetting()
             {
-                canvas.renderMode = RenderMode.ScreenSpaceCamera;
-                canvas.worldCamera = Camera.main;
+                comp = typeof(Canvas),
+                type = ComponentType.AddComponent,
+                metaSetting = (canvas) =>
+                {
+                    Canvas _canvas = (Canvas)canvas;
+                    _canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    _canvas.worldCamera = Camera.main;
+                }
             });
 
-        GameObject _backgroundGo = PushComponent<Image>("Background", _canvasGo.transform,
-             (transfom) =>
-             {
-                 SetTransformState(transfom, AnchorType.FitMagnify);
-             },
-             (image) =>
-             {
-                 image.color = Color.gray;
-             });
+        PushComponent("Background", _canvasGo.transform,
+            new ComponentSetting()
+            {
+                comp = typeof(Image),
+                type = ComponentType.AddComponent,
+                metaSetting = (image) =>
+                {
+                    Image _img = (Image)image;
+                    _img.color = Color.gray;
+                }
+            },
+            new ComponentSetting()
+            {
+                comp = typeof(Transform),
+                type = ComponentType.DefaultComponent,
+                metaSetting = (transform) =>
+                {
+                    Transform _trans = (Transform)transform;
+                    SetTransformState(_trans, AnchorType.FitMagnify);
+                }
+            });
 
         Image _buttonImg = null;
-        GameObject _testerButtonGo = PushComponent<Image>("TestButton", _canvasGo.transform,
-            (transfom) =>
+        GameObject _testerButtonGo = PushComponent("TestButton", _canvasGo.transform,
+            new ComponentSetting()
             {
-                //_buttonImg = transfom.gameObject.AddComponent<Image>();
-
-                SetTransformState(transfom, AnchorType.SimpleCenter);
-
-                RectTransform _rect = transfom.GetComponent<RectTransform>();
-                _rect.sizeDelta = new Vector2(130, 40);
-
-                
+                comp = typeof(Image),
+                type = ComponentType.AddComponent,
+                metaSetting = (image) =>
+                 {
+                     Image _img = (Image)image;
+                     _buttonImg = _img;
+                 }
             },
-            (button) =>
+            new ComponentSetting()
             {
-                //button.targetGraphic = _buttonImg;
+                comp = typeof(Button),
+                type = ComponentType.AddComponent,
+                metaSetting = (button) =>
+                {
+                    Button _btn = (Button)button;
+                    _btn.targetGraphic = _buttonImg;
+                }
+            },
+            new ComponentSetting()
+            {
+                comp = typeof(Transform),
+                type = ComponentType.DefaultComponent,
+                metaSetting = (transform) =>
+                {
+                    Transform _trans = (Transform)transform;
+                    SetTransformState(_trans, AnchorType.SimpleCenter);
+
+                    RectTransform _rect = _trans.GetComponent<RectTransform>();
+                    _rect.sizeDelta = new Vector2(130, 40);
+                }
             });
 
-        GameObject _buttonTextGo = PushComponent<Text>("Text", _testerButtonGo.transform,
-            (transfom) =>
+        PushComponent("Text", _testerButtonGo.transform,
+            new ComponentSetting()
             {
-                SetTransformState(transfom, AnchorType.FitMagnify);
+                comp = typeof(Text),
+                type = ComponentType.AddComponent,
+                metaSetting = (text) =>
+                  {
+                      Text _txt = (Text)text;
+                      _txt.alignment = TextAnchor.MiddleCenter;
+                      _txt.text = "測試";
+                      _txt.color = Color.black;
+                  }
             },
-            (text)=>
+            new ComponentSetting()
             {
-                text.alignment = TextAnchor.MiddleCenter;
-                text.text = "測試";
-                text.color = Color.black;
+                comp = typeof(Transform),
+                type = ComponentType.DefaultComponent,
+                metaSetting = (transform) =>
+                {
+                    Transform _trans = (Transform)transform;
+                    SetTransformState(_trans, AnchorType.FitMagnify);
+                }
             });
+
+        PushComponent("---------------------");
+
+        PushComponent("ScriptHolder");
     }
 
-    private static GameObject PushComponent<T>(string objectName, Transform parent = null, Action<Transform> transformSetting = null, Action<T> metaSetting = null, params Action<Component>[] addComponentSetting)
+    private static GameObject PushComponent(string objectName, Transform parent = null, params ComponentSetting[] componentSetting)
     {
-        GameObject _go = new GameObject(objectName, typeof(T));
+        GameObject _go = new GameObject(objectName);
 
         if (parent != null)
             _go.transform.SetParent(parent);
 
-        if (transformSetting != null)
-            transformSetting.Invoke(_go.transform);
-
-        if (metaSetting != null)
+        for (int i = 0; i < componentSetting.Length; i++)
         {
-            T _comp = _go.GetComponent<T>();
-            metaSetting.Invoke(_comp);
-        }
+            Type _compType = componentSetting[i].comp;
+            Component _comp = null;
 
-        if(addComponentSetting != null && addComponentSetting.Length > 0)
-        {
+            switch (componentSetting[i].type)
+            {
+                case ComponentType.AddComponent:
+                    _comp = _go.AddComponent(_compType);
+                    break;
 
+                case ComponentType.DefaultComponent:
+                    _comp = _go.GetComponent(_compType);
+                    break;
+            }
+
+            if (_comp != null)
+                componentSetting[i].metaSetting.Invoke(_comp);
         }
 
         return _go;
