@@ -17,9 +17,32 @@ public class NTPTimeTester : MonoBehaviour
         "TIME4.google.com"
     };
 
-    List<IPEndPoint> ipEndPoint_List = new List<IPEndPoint>();
+    private List<IPEndPoint> ipEndPoint_List = new List<IPEndPoint>();
+    private bool ntpGetting = false;
 
-    public void BTN_NTPTimeTest()
+    public void BTN_NTPTest()
+    {
+        StartCoroutine(Cor_GetNTPTime());
+    }
+
+    private IEnumerator Cor_GetNTPTime()
+    {
+        if (ntpGetting)
+            yield break;
+
+        ntpGetting = true;
+
+        for (int i = 0; i < 100; i++)
+        {
+            NTPTimeTest();
+
+            yield return new WaitForSeconds(2);
+        }
+
+        ntpGetting = false;
+    }
+
+    private void NTPTimeTest()
     {
         for (int i = 0; i < NTP_SERVER.Length; i++)
         {
@@ -48,9 +71,9 @@ public class NTPTimeTester : MonoBehaviour
 
         new Thread(() =>
         {
-            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            socket.SendTimeout = 5000;
-            socket.ReceiveTimeout = 5000;
+            var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
+            socket.SendTimeout = 500000;
+            socket.ReceiveTimeout = 500000;
 
             try
             {
@@ -67,6 +90,8 @@ public class NTPTimeTester : MonoBehaviour
                 UnityEngine.Debug.Log("NTPClockGetError : " + _exception);
             }
         }).Start();
+
+        Debug.Log(GetDateDetailLog(DateTime.UtcNow) + "(UTCNow)");
     }
 
     private void ReceiveNTPData(byte[] ntpData)
@@ -82,11 +107,11 @@ public class NTPTimeTester : MonoBehaviour
 
         ulong _delay = (ulong)ntpData[4] << 24 | (ulong)ntpData[5] << 16 | (ulong)ntpData[6] << 8 | (ulong)ntpData[7];
 
-        Debug.Log("Delay : " + _delay);
-        Debug.Log("ServerSendDate : " + GetDateDetailLog(_serverSendDate));
-        Debug.Log("ClientReceiveDate : " + GetDateDetailLog(_clientReceiveDate));
-        Debug.Log("ClientLocalDate : " + GetDateDetailLog(_clientLocalDate));
-        Debug.Log("UTCNow : " + GetDateDetailLog(DateTime.UtcNow));
+        //Debug.Log(string.Format("<color=yellow>Delay : {0}</color>", _delay));
+        Debug.Log(GetDateDetailLog(_serverSendDate) + "(ServerSendDate)");
+        Debug.Log(GetDateDetailLog(_clientReceiveDate) + "(ClientReceiveDate)");
+        Debug.Log(GetDateDetailLog(_clientLocalDate) + "(ClientLocalDate)");
+        Debug.Log("-------------------");
 
     }
 
@@ -95,7 +120,7 @@ public class NTPTimeTester : MonoBehaviour
         ulong intPart = (ulong)datas[int_4] << 24 | (ulong)datas[int_3] << 16 | (ulong)datas[int_2] << 8 | (ulong)datas[int_1];
         ulong fractPart = (ulong)datas[fract_4] << 24 | (ulong)datas[fract_3] << 16 | (ulong)datas[fract_2] << 8 | (ulong)datas[fract_1];
 
-        ulong milliseconds = (intPart * 1000) + ((fractPart * 1000) / 0x100000000L);
+        ulong milliseconds = ( intPart * 1000 ) + ( ( fractPart * 1000 ) / 0x100000000L );
 
         return milliseconds;
     }
