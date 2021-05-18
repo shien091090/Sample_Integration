@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using UnityEditor;
 using System;
 
-public class SceneTemplate
+public static class SceneTemplate
 {
     public enum AnchorType
     {
@@ -30,7 +31,7 @@ public class SceneTemplate
     [MenuItem("CreateTemplateScene/TesterButton")]
     public static void CreateTemplateScene_ButtonTester()
     {
-        GameObject _canvasGo = PushComponent("Canvas_Main", componentSetting:
+        GameObject _canvasGo = PushComponent("Canvas_Main", null,
             new ComponentSetting()
             {
                 comp = typeof(Canvas),
@@ -41,6 +42,11 @@ public class SceneTemplate
                     _canvas.renderMode = RenderMode.ScreenSpaceCamera;
                     _canvas.worldCamera = Camera.main;
                 }
+            },
+            new ComponentSetting()
+            {
+                comp = typeof(GraphicRaycaster),
+                type = ComponentType.AddComponent
             });
 
         PushComponent("Background", _canvasGo.transform,
@@ -62,6 +68,30 @@ public class SceneTemplate
                 {
                     Transform _trans = (Transform)transform;
                     SetTransformState(_trans, AnchorType.FitMagnify);
+                }
+            });
+
+        PushComponent("TitleLabel", _canvasGo.transform,
+            new ComponentSetting()
+            {
+                comp = typeof(Text),
+                type = ComponentType.AddComponent,
+                metaSetting = (text) =>
+                {
+                    Text _txt = (Text)text;
+                    _txt.fontSize = 27;
+                    _txt.alignment = TextAnchor.MiddleCenter;
+                    _txt.text = "(標題)";
+                }
+            },
+            new ComponentSetting()
+            {
+                comp = typeof(Transform),
+                type = ComponentType.DefaultComponent,
+                metaSetting = (transform) =>
+                {
+                    Transform _trans = (Transform)transform;
+                    SetTransformState(_trans, AnchorType.SimpleCenter, new Vector2(0, 130), new Vector2(300, 70));
                 }
             });
 
@@ -94,10 +124,7 @@ public class SceneTemplate
                 metaSetting = (transform) =>
                 {
                     Transform _trans = (Transform)transform;
-                    SetTransformState(_trans, AnchorType.SimpleCenter);
-
-                    RectTransform _rect = _trans.GetComponent<RectTransform>();
-                    _rect.sizeDelta = new Vector2(130, 40);
+                    SetTransformState(_trans, AnchorType.SimpleCenter, Vector2.zero, new Vector2(130, 40));
                 }
             });
 
@@ -127,6 +154,18 @@ public class SceneTemplate
 
         PushComponent("---------------------");
 
+        PushComponent("EventSystem", null,
+            new ComponentSetting()
+            {
+                comp = typeof(EventSystem),
+                type = ComponentType.AddComponent
+            },
+            new ComponentSetting()
+            {
+                comp = typeof(StandaloneInputModule),
+                type = ComponentType.AddComponent
+            });
+
         PushComponent("ScriptHolder");
     }
 
@@ -153,14 +192,14 @@ public class SceneTemplate
                     break;
             }
 
-            if (_comp != null)
+            if (_comp != null && componentSetting[i].metaSetting != null)
                 componentSetting[i].metaSetting.Invoke(_comp);
         }
 
         return _go;
     }
 
-    private static void SetTransformState(Transform target, AnchorType type)
+    private static void SetTransformState(Transform target, AnchorType type, params Vector2[] posAndSize)
     {
         RectTransform _rect = target.GetComponent<RectTransform>();
 
@@ -184,5 +223,14 @@ public class SceneTemplate
                 target.localPosition = Vector3.zero;
                 break;
         }
+
+        if (posAndSize == null)
+            return;
+
+        if (posAndSize.Length >= 1)
+            target.localPosition = posAndSize[0];
+
+        if (posAndSize.Length >= 2 && _rect != null)
+            _rect.sizeDelta = posAndSize[1];
     }
 }
