@@ -8,6 +8,26 @@ using System.Threading;
 
 public class NTPTimeTester : MonoBehaviour
 {
+    public class TimeFlow
+    {
+        private ulong clientSendTimeStamp;
+        private ulong serverTimeStamp;
+        private ulong clientReceiveTimeStamp;
+
+        public bool IsFlowComplete
+        {
+            get
+            {
+                return ( clientSendTimeStamp > 0 && serverTimeStamp > 0 && clientReceiveTimeStamp > 0 );
+            }
+        }
+
+        public TimeFlow(ulong timeStamp)
+        {
+            clientSendTimeStamp = timeStamp;
+        }
+    }
+
     private string[] NTP_SERVER =
     {
         "TIME.google.com",
@@ -17,7 +37,10 @@ public class NTPTimeTester : MonoBehaviour
         "TIME4.google.com"
     };
 
-    private List<IPEndPoint> ipEndPoint_List = new List<IPEndPoint>();
+    public int freq;
+    public bool isStop = false;
+    private List<IPEndPoint> ipEndPoint_List;
+    private List<TimeFlow> ntpTimeRecord;
     private bool ntpGetting = false;
 
     public void BTN_NTPTest()
@@ -32,69 +55,80 @@ public class NTPTimeTester : MonoBehaviour
 
         ntpGetting = true;
 
-        for (int i = 0; i < 100; i++)
+        bool _isInvalid = SetIPPoint(NTP_SERVER, out ipEndPoint_List);
+        if (!_isInvalid || ipEndPoint_List == null || ipEndPoint_List.Count <= 0)
         {
-            NTPTimeTest();
-
-            yield return new WaitForSeconds(2);
+            ntpGetting = false;
+            yield break;
         }
 
+        while (!isStop)
+        {
+            GetNTPTime(ipEndPoint_List[0]);
+
+            yield return new WaitForSeconds(freq);
+        }
+
+        isStop = false;
         ntpGetting = false;
     }
 
-    private void NTPTimeTest()
+    private bool SetIPPoint(string[] servers, out List<IPEndPoint> ipEndList)
     {
-        for (int i = 0; i < NTP_SERVER.Length; i++)
+        List<IPEndPoint> _ipEndList = new List<IPEndPoint>();
+
+        for (int i = 0; i < servers.Length; i++)
         {
             try
             {
-                var addresses = Dns.GetHostEntry(NTP_SERVER[i]).AddressList;
-                ipEndPoint_List.Add(new IPEndPoint(addresses[0], 123));
+                IPAddress[] addresses = Dns.GetHostEntry(servers[i]).AddressList;
+                _ipEndList.Add(new IPEndPoint(addresses[0], 123));
             }
             catch (Exception _exception)
             {
-                UnityEngine.Debug.Log(_exception);
+                Debug.Log(_exception);
+                ipEndList = null;
+                return false;
             }
         }
 
-        GetNTPClock();
-
+        ipEndList = _ipEndList;
+        return true;
     }
 
-    private void GetNTPClock()
+    private void GetNTPTime(IPEndPoint ip)
     {
-        if (ipEndPoint_List.Count == 0)
-            return;
+        TimeSpan _span = DateTime.UtcNow - new DateTime(1900, 1, 1, 0, 0, 0, 0);
+        TimeFlow _timeRecord = new TimeFlow((ulong)_span.TotalMilliseconds);
 
         byte[] ntpData = new byte[48];
-        ntpData[0] = 0x1B; //LeapIndicator = 0 (no warning), VersionNum = 3 (IPv4 only), Mode = 3 (Client Mode)
+        ntpData[0] = 0x1B;
 
         new Thread(() =>
         {
             var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-            socket.SendTimeout = 500000;
-            socket.ReceiveTimeout = 500000;
+            socket.SendTimeout = 5000;
+            socket.ReceiveTimeout = 5000;
 
             try
             {
                 socket.SendTo(ntpData, ipEndPoint_List[0]);
                 socket.Receive(ntpData);
 
-                ReceiveNTPData(ntpData);
+                ReceiveNTPData(ntpData, _timeRecord);
 
                 socket.Close();
             }
             catch (Exception _exception)
             {
                 socket.Close();
-                UnityEngine.Debug.Log("NTPClockGetError : " + _exception);
+                Debug.Log("NTPClockGetError : " + _exception);
             }
         }).Start();
 
-        Debug.Log(GetDateDetailLog(DateTime.UtcNow) + "(UTCNow)");
     }
 
-    private void ReceiveNTPData(byte[] ntpData)
+    private void ReceiveNTPData(byte[] ntpData, TimeFlow timeRecord)
     {
         ulong _serverSendTime = OctBitsPackToMilliseconds(ntpData, 40, 41, 42, 43, 44, 45, 46, 47);
         DateTime _serverSendDate = new DateTime(1900, 1, 1, 0, 0, 0, 0).Add(TimeSpan.FromMilliseconds(_serverSendTime));
