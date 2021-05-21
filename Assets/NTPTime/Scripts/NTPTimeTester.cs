@@ -192,8 +192,8 @@ public class NTPTimeTester : MonoBehaviour
         new Thread(() =>
         {
             var socket = new Socket(addressFamily, socketType, protocolType);
-            socket.SendTimeout = 50000;
-            socket.ReceiveTimeout = 50000;
+            socket.SendTimeout = 5000;
+            socket.ReceiveTimeout = 5000;
 
             try
             {
@@ -240,7 +240,6 @@ public class NTPTimeTester : MonoBehaviour
                 Debug.Log(string.Format("[{0}] ServerReceiveTimeStamp = {1} ms", _index, timeRecord.ServerReceiveTimeStamp));
                 Debug.Log(string.Format("[{0}] ClientReceiveTimeStamp = {1} ms", _index, timeRecord.ClientReceiveTimeStamp));
                 Debug.Log(string.Format("[{0}] ServerTansmitTimeStamp = {1} ms", _index, timeRecord.ServerTansmitTimeStamp));
-
             }
 
             if (printDetailDate)
@@ -250,6 +249,9 @@ public class NTPTimeTester : MonoBehaviour
                 Debug.Log(string.Format("[{0}] ClientReceiveTime Date= {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientReceiveTimeStamp))));
                 Debug.Log(string.Format("[{0}] ServerTansmitTime Date= {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerTansmitTimeStamp))));
             }
+
+            if (!string.IsNullOrEmpty(timeRecord.Log))
+                Debug.Log(string.Format("[{0}] [Error Log] : {1}", _index, timeRecord.Log));
 
             Debug.Log("==========================================");
         }
