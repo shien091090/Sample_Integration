@@ -23,6 +23,7 @@ public class NTPTimeTester : MonoBehaviour
         public ulong ServerTansmitTimeStamp { private set; get; }
         public bool IsFlowComplete { private set; get; }
         public string Log { private set; get; }
+        public string ntpServer { private set; get; }
 
         public TimeFlowState GetState
         {
@@ -76,9 +77,10 @@ public class NTPTimeTester : MonoBehaviour
             }
         }
 
-        public TimeFlow(ulong timeStamp)
+        public TimeFlow(ulong timeStamp, string server)
         {
             ClientSendTimeStamp = timeStamp;
+            ntpServer = server;
 
             IsFlowComplete = false;
         }
@@ -150,7 +152,7 @@ public class NTPTimeTester : MonoBehaviour
 
         while (!isStop)
         {
-            GetNTPTime(ipEndPoint_List[0]);
+            GetNTPTime(ipEndPoint_List);
 
             yield return new WaitForSeconds(freq);
         }
@@ -182,36 +184,40 @@ public class NTPTimeTester : MonoBehaviour
         return true;
     }
 
-    private void GetNTPTime(IPEndPoint ip)
+    private void GetNTPTime(List<IPEndPoint> ipList)
     {
-        TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp());
-
-        byte[] ntpData = new byte[48];
-        ntpData[0] = 0x1B;
-
-        new Thread(() =>
+        for (int i = 0; i < ipList.Count; i++)
         {
-            var socket = new Socket(addressFamily, socketType, protocolType);
-            socket.SendTimeout = 5000;
-            socket.ReceiveTimeout = 5000;
+            TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), NTP_SERVER[i]);
 
-            try
+            byte[] ntpData = new byte[48];
+            ntpData[0] = 0x1B;
+
+            new Thread(() =>
             {
-                socket.SendTo(ntpData, ipEndPoint_List[0]);
-                socket.Receive(ntpData);
+                var socket = new Socket(addressFamily, socketType, protocolType);
+                socket.SendTimeout = 5000;
+                socket.ReceiveTimeout = 5000;
 
-                ReceiveNTPData(ntpData, _timeRecord);
+                try
+                {
+                    socket.SendTo(ntpData, ipList[i]);
+                    socket.Receive(ntpData);
 
-                socket.Close();
-            }
-            catch (Exception _exception)
-            {
-                socket.Close();
+                    ReceiveNTPData(ntpData, _timeRecord);
 
-                RecordNTPRequestResult(_timeRecord.SetReceiveTime(0, 0, 0, string.Format("NTPClockGetError : {0}", _exception)));
-            }
+                    socket.Close();
+                }
+                catch (Exception _exception)
+                {
+                    socket.Close();
 
-        }).Start();
+                    RecordNTPRequestResult(_timeRecord.SetReceiveTime(0, 0, 0, string.Format("NTPClockGetError : {0}", _exception)));
+                }
+
+            }).Start();
+        }
+
 
     }
 
