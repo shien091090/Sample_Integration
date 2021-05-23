@@ -5,6 +5,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Linq;
 
 public enum TimeFlowState
 {
@@ -23,7 +24,8 @@ public class NTPTimeTester : MonoBehaviour
         public ulong ServerTansmitTimeStamp { private set; get; }
         public bool IsFlowComplete { private set; get; }
         public string Log { private set; get; }
-        public string ntpServer { private set; get; }
+        public string ntpServerName { private set; get; }
+        public string ntpServerAddress { private set; get; }
 
         public TimeFlowState GetState
         {
@@ -77,10 +79,11 @@ public class NTPTimeTester : MonoBehaviour
             }
         }
 
-        public TimeFlow(ulong timeStamp, string server)
+        public TimeFlow(ulong timeStamp, string serverName, string serverAddress)
         {
             ClientSendTimeStamp = timeStamp;
-            ntpServer = server;
+            ntpServerName = serverName;
+            ntpServerAddress = serverAddress;
 
             IsFlowComplete = false;
         }
@@ -119,6 +122,7 @@ public class NTPTimeTester : MonoBehaviour
     public bool printDelay;
     public bool printDetailTimeStamp;
     public bool printDetailDate;
+    public bool printTargetServer;
 
     [Header("SocketSetting")]
     public AddressFamily addressFamily = AddressFamily.InterNetworkV6;
@@ -170,7 +174,12 @@ public class NTPTimeTester : MonoBehaviour
             try
             {
                 IPAddress[] addresses = Dns.GetHostEntry(servers[i]).AddressList;
-                _ipEndList.Add(new IPEndPoint(addresses[0], 123));
+
+                IPAddress[] _filterAddresses = addresses
+                    .Where(x=>x.AddressFamily == addressFamily)
+                    .ToArray();
+
+                _ipEndList.Add(new IPEndPoint(_filterAddresses[0], 123));
             }
             catch (Exception _exception)
             {
@@ -188,8 +197,9 @@ public class NTPTimeTester : MonoBehaviour
     {
         for (int i = 0; i < ipList.Count; i++)
         {
-            TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), NTP_SERVER[i]);
+            TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), NTP_SERVER[i], ipList[i].Address.ToString());
 
+            IPEndPoint _ip = ipList[i];
             byte[] ntpData = new byte[48];
             ntpData[0] = 0x1B;
 
@@ -201,10 +211,13 @@ public class NTPTimeTester : MonoBehaviour
 
                 try
                 {
-                    socket.SendTo(ntpData, ipList[i]);
+                    socket.SendTo(ntpData, _ip);
                     socket.Receive(ntpData);
 
-                    ReceiveNTPData(ntpData, _timeRecord);
+                    ulong _serverReceiveTimestamp = OctBitsPackToMilliseconds(ntpData, 40, 41, 42, 43, 44, 45, 46, 47);
+                    ulong _serverTransmitTimestamp = OctBitsPackToMilliseconds(ntpData, 32, 33, 34, 35, 36, 37, 38, 39);
+
+                    RecordNTPRequestResult(_timeRecord.SetReceiveTime(_serverReceiveTimestamp, _serverTransmitTimestamp, GetClientNowTimeStamp()));
 
                     socket.Close();
                 }
@@ -228,7 +241,7 @@ public class NTPTimeTester : MonoBehaviour
 
         ntpTimeRecords.Add(timeRecord);
 
-        bool _isPrint = (printDelay || printOffset || printDetailTimeStamp || printDetailDate);
+        bool _isPrint = (printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer);
 
         if (_isPrint)
         {
@@ -256,6 +269,9 @@ public class NTPTimeTester : MonoBehaviour
                 Debug.Log(string.Format("[{0}] ServerTansmitTime Date= {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerTansmitTimeStamp))));
             }
 
+            if(printTargetServer)
+                Debug.Log(string.Format("[{0}] ServerName = {1}, ServerAddress = {2}", _index, timeRecord.ntpServerName, timeRecord.ntpServerAddress));
+
             if (!string.IsNullOrEmpty(timeRecord.Log))
                 Debug.Log(string.Format("[{0}] [Error Log] : {1}", _index, timeRecord.Log));
 
@@ -267,15 +283,6 @@ public class NTPTimeTester : MonoBehaviour
     {
         TimeSpan _span = DateTime.UtcNow - ntpTimeOrigin;
         return (ulong)_span.TotalMilliseconds;
-    }
-
-    private void ReceiveNTPData(byte[] ntpData, TimeFlow timeRecord)
-    {
-        ulong _serverReceiveTimestamp = OctBitsPackToMilliseconds(ntpData, 40, 41, 42, 43, 44, 45, 46, 47);
-        ulong _serverTransmitTimestamp = OctBitsPackToMilliseconds(ntpData, 32, 33, 34, 35, 36, 37, 38, 39);
-
-        RecordNTPRequestResult(timeRecord.SetReceiveTime(_serverReceiveTimestamp, _serverTransmitTimestamp, GetClientNowTimeStamp()));
-
     }
 
     private ulong OctBitsPackToMilliseconds(byte[] datas, int int_4, int int_3, int int_2, int int_1, int fract_4, int fract_3, int fract_2, int fract_1)
