@@ -56,7 +56,7 @@ public class NTPTimeTester : MonoBehaviour
                     ulong t2 = ServerTansmitTimeStamp;
                     ulong t3 = ClientReceiveTimeStamp;
 
-                    return (int)((t1 - t0) + (t2 - t3)) / 2;
+                    return (int)( ( t1 - t0 ) + ( t2 - t3 ) ) / 2;
                 }
             }
         }
@@ -74,7 +74,7 @@ public class NTPTimeTester : MonoBehaviour
                     ulong t2 = ServerTansmitTimeStamp;
                     ulong t3 = ClientReceiveTimeStamp;
 
-                    return (int)((t3 - t0) - (t2 - t1));
+                    return (int)( ( t3 - t0 ) - ( t2 - t1 ) );
                 }
             }
         }
@@ -98,6 +98,88 @@ public class NTPTimeTester : MonoBehaviour
             IsFlowComplete = true;
 
             return this;
+        }
+    }
+
+    //-----------------------------------------------------------------------
+
+    public class NTPServerEvaluation
+    {
+        private string[] ntpServerNames;
+        private int invalidScore = 1;
+        private float filterPercentage = 0.4f;
+
+        public Dictionary<string, float> EvaluationScoreTable { private set; get; }
+
+        public int SamplingThreshold { private set; get; }
+
+        public NTPServerEvaluation(string[] serverNameArr, int threshold)
+        {
+            SamplingThreshold = threshold;
+            ntpServerNames = serverNameArr;
+        }
+
+        public string[] EvaluateNTPServer(List<TimeFlow> timeFlowRecords)
+        {
+            if (ntpServerNames == null || ntpServerNames.Length <= SamplingThreshold)
+                return null;
+
+            EvaluationScoreTable = new Dictionary<string, float>();
+
+            for (int i = 0; i < ntpServerNames.Length; i++)
+            {
+                string _ntpServer = ntpServerNames[i];
+
+                TimeFlow[] _filterTimeFlows = timeFlowRecords
+                    .Where(x => x.ntpServerName == _ntpServer)
+                    .ToArray();
+
+                float _scoreAverage = 0;
+                int _deno = 0;
+                for (int j = 0; j < _filterTimeFlows.Length; j++)
+                {
+                    int _score = 0;
+
+                    switch (_filterTimeFlows[j].GetState)
+                    {
+                        case TimeFlowState.NotCompleted:
+                            continue;
+
+                        case TimeFlowState.Valid:
+                            _score = ScoreAlgorithm(_filterTimeFlows[j].GetRoundTripDelay);
+                            break;
+
+                        case TimeFlowState.Invalid:
+                            _score = invalidScore;
+                            break;
+                    }
+
+                    _scoreAverage += _score;
+                    _deno++;
+                }
+                _scoreAverage /= _deno;
+
+                EvaluationScoreTable[_ntpServer] = _scoreAverage;
+            }
+
+            int _resultCount = Mathf.RoundToInt(EvaluationScoreTable.Count * filterPercentage);
+            string[] _resultServer = new string[_resultCount];
+
+            KeyValuePair<string, float>[] _sortEvaluation = EvaluationScoreTable.
+                OrderByDescending(x => x.Value).
+                ToArray();
+
+            for (int i = 0; i < _resultServer.Length; i++)
+            {
+                _resultServer[i] = _sortEvaluation[i].Key;
+            }
+
+            return _resultServer;
+        }
+
+        private int ScoreAlgorithm(int delayValue)
+        {
+            return Mathf.RoundToInt(5000f / Mathf.Pow(delayValue, 1.55f));
         }
     }
 
@@ -130,7 +212,7 @@ public class NTPTimeTester : MonoBehaviour
     public ProtocolType protocolType = ProtocolType.Udp;
 
     private bool ntpGetting = false;
-    private List<IPEndPoint> ipEndPoint_List;
+    private Dictionary<string, IPEndPoint> ipEndPointTable;
     private List<TimeFlow> ntpTimeRecords;
 
     //-----------------------------------------------------------------------
@@ -147,8 +229,8 @@ public class NTPTimeTester : MonoBehaviour
 
         ntpGetting = true;
 
-        bool _isInvalid = SetIPPoint(NTP_SERVER, out ipEndPoint_List);
-        if (!_isInvalid || ipEndPoint_List == null || ipEndPoint_List.Count <= 0)
+        bool _isInvalid = SetIPPoint(NTP_SERVER, out ipEndPointTable);
+        if (!_isInvalid || ipEndPointTable == null || ipEndPointTable.Count <= 0)
         {
             ntpGetting = false;
             yield break;
@@ -156,7 +238,7 @@ public class NTPTimeTester : MonoBehaviour
 
         while (!isStop)
         {
-            GetNTPTime(ipEndPoint_List);
+            GetNTPTime(ipEndPointTable);
 
             yield return new WaitForSeconds(freq);
         }
@@ -165,9 +247,9 @@ public class NTPTimeTester : MonoBehaviour
         ntpGetting = false;
     }
 
-    private bool SetIPPoint(string[] servers, out List<IPEndPoint> ipEndList)
+    private bool SetIPPoint(string[] servers, out Dictionary<string, IPEndPoint> ipEndPointTable)
     {
-        List<IPEndPoint> _ipEndList = new List<IPEndPoint>();
+        Dictionary<string, IPEndPoint> _ipEndPointTable = new Dictionary<string, IPEndPoint>();
 
         for (int i = 0; i < servers.Length; i++)
         {
@@ -176,30 +258,35 @@ public class NTPTimeTester : MonoBehaviour
                 IPAddress[] addresses = Dns.GetHostEntry(servers[i]).AddressList;
 
                 IPAddress[] _filterAddresses = addresses
-                    .Where(x=>x.AddressFamily == addressFamily)
+                    .Where(x => x.AddressFamily == addressFamily)
                     .ToArray();
 
-                _ipEndList.Add(new IPEndPoint(_filterAddresses[0], 123));
+                IPEndPoint _iPEndPoint = new IPEndPoint(_filterAddresses[0], 123);
+                _ipEndPointTable.Add(servers[i], _iPEndPoint);
             }
             catch (Exception _exception)
             {
                 Debug.Log(_exception);
-                ipEndList = null;
-                return false;
             }
         }
 
-        ipEndList = _ipEndList;
+        if (_ipEndPointTable.Count <= 0)
+        {
+            ipEndPointTable = null;
+            return false;
+        }
+
+
+        ipEndPointTable = _ipEndPointTable;
         return true;
     }
 
-    private void GetNTPTime(List<IPEndPoint> ipList)
+    private void GetNTPTime(Dictionary<string, IPEndPoint> _ipEndPointTable)
     {
-        for (int i = 0; i < ipList.Count; i++)
+        foreach (KeyValuePair<string, IPEndPoint> ipPoint in _ipEndPointTable)
         {
-            TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), NTP_SERVER[i], ipList[i].Address.ToString());
+            TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), ipPoint.Key, ipPoint.Value.Address.ToString());
 
-            IPEndPoint _ip = ipList[i];
             byte[] ntpData = new byte[48];
             ntpData[0] = 0x1B;
 
@@ -211,7 +298,7 @@ public class NTPTimeTester : MonoBehaviour
 
                 try
                 {
-                    socket.SendTo(ntpData, _ip);
+                    socket.SendTo(ntpData, ipPoint.Value);
                     socket.Receive(ntpData);
 
                     ulong _serverReceiveTimestamp = OctBitsPackToMilliseconds(ntpData, 40, 41, 42, 43, 44, 45, 46, 47);
@@ -230,8 +317,6 @@ public class NTPTimeTester : MonoBehaviour
 
             }).Start();
         }
-
-
     }
 
     private void RecordNTPRequestResult(TimeFlow timeRecord)
@@ -241,41 +326,42 @@ public class NTPTimeTester : MonoBehaviour
 
         ntpTimeRecords.Add(timeRecord);
 
-        bool _isPrint = (printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer);
+        bool _isPrint = ( printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer );
 
         if (_isPrint)
         {
-            int _index = ntpTimeRecords.Count - 1;
+            string _debugLog = string.Empty;
+
+            if (printTargetServer)
+                _debugLog += string.Format("ServerName = {0}, ServerAddress = {1}\n", timeRecord.ntpServerName, timeRecord.ntpServerAddress);
 
             if (printDelay)
-                Debug.Log(string.Format("[{0}] Delay = {1} ms", _index, timeRecord.GetRoundTripDelay));
+                _debugLog += string.Format("Delay = {0} ms\n", timeRecord.GetRoundTripDelay);
 
             if (printOffset)
-                Debug.Log(string.Format("[{0}] Offset = {1} ms", _index, timeRecord.GetTimeOffset));
+                _debugLog += string.Format("Offset = {0} ms\n", timeRecord.GetTimeOffset);
 
             if (printDetailTimeStamp)
             {
-                Debug.Log(string.Format("[{0}] ClientSendTimeStamp = {1} ms", _index, timeRecord.ClientSendTimeStamp));
-                Debug.Log(string.Format("[{0}] ServerReceiveTimeStamp = {1} ms", _index, timeRecord.ServerReceiveTimeStamp));
-                Debug.Log(string.Format("[{0}] ClientReceiveTimeStamp = {1} ms", _index, timeRecord.ClientReceiveTimeStamp));
-                Debug.Log(string.Format("[{0}] ServerTansmitTimeStamp = {1} ms", _index, timeRecord.ServerTansmitTimeStamp));
+                _debugLog += string.Format("ClientSendTimeStamp = {0} ms\n", timeRecord.ClientSendTimeStamp);
+                _debugLog += string.Format("ServerReceiveTimeStamp = {0} ms\n", timeRecord.ServerReceiveTimeStamp);
+                _debugLog += string.Format("ClientReceiveTimeStamp = {0} ms\n", timeRecord.ClientReceiveTimeStamp);
+                _debugLog += string.Format("ServerTansmitTimeStamp = {0} ms\n", timeRecord.ServerTansmitTimeStamp);
             }
 
             if (printDetailDate)
             {
-                Debug.Log(string.Format("[{0}] ClientSendTime Date = {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientSendTimeStamp))));
-                Debug.Log(string.Format("[{0}] ServerReceiveTime Date= {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerReceiveTimeStamp))));
-                Debug.Log(string.Format("[{0}] ClientReceiveTime Date= {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientReceiveTimeStamp))));
-                Debug.Log(string.Format("[{0}] ServerTansmitTime Date= {1}", _index, GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerTansmitTimeStamp))));
+                _debugLog += string.Format("ClientSendTime Date = {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientSendTimeStamp)));
+                _debugLog += string.Format("ServerReceiveTime Date= {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerReceiveTimeStamp)));
+                _debugLog += string.Format("ClientReceiveTime Date= {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientReceiveTimeStamp)));
+                _debugLog += string.Format("ServerTansmitTime Date= {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerTansmitTimeStamp)));
             }
 
-            if(printTargetServer)
-                Debug.Log(string.Format("[{0}] ServerName = {1}, ServerAddress = {2}", _index, timeRecord.ntpServerName, timeRecord.ntpServerAddress));
-
             if (!string.IsNullOrEmpty(timeRecord.Log))
-                Debug.Log(string.Format("[{0}] [Error Log] : {1}", _index, timeRecord.Log));
+                _debugLog += string.Format("[Error Log] : {0}\n", timeRecord.Log);
 
-            Debug.Log("==========================================");
+            if (!string.IsNullOrEmpty(_debugLog))
+                Debug.Log(_debugLog);
         }
     }
 
@@ -290,7 +376,7 @@ public class NTPTimeTester : MonoBehaviour
         ulong intPart = (ulong)datas[int_4] << 24 | (ulong)datas[int_3] << 16 | (ulong)datas[int_2] << 8 | (ulong)datas[int_1];
         ulong fractPart = (ulong)datas[fract_4] << 24 | (ulong)datas[fract_3] << 16 | (ulong)datas[fract_2] << 8 | (ulong)datas[fract_1];
 
-        ulong milliseconds = (intPart * 1000) + ((fractPart * 1000) / 0x100000000L);
+        ulong milliseconds = ( intPart * 1000 ) + ( ( fractPart * 1000 ) / 0x100000000L );
 
         return milliseconds;
     }
