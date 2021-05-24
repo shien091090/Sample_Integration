@@ -16,6 +16,7 @@ public enum TimeFlowState
 
 public class NTPTimeTester : MonoBehaviour
 {
+    [System.Serializable]
     public class TimeFlow
     {
         public ulong ClientSendTimeStamp { private set; get; }
@@ -24,8 +25,8 @@ public class NTPTimeTester : MonoBehaviour
         public ulong ServerTansmitTimeStamp { private set; get; }
         public bool IsFlowComplete { private set; get; }
         public string Log { private set; get; }
-        public string ntpServerName { private set; get; }
-        public string ntpServerAddress { private set; get; }
+        public string NTPServerName { private set; get; }
+        public string NTPServerAddress { private set; get; }
 
         public TimeFlowState GetState
         {
@@ -82,8 +83,8 @@ public class NTPTimeTester : MonoBehaviour
         public TimeFlow(ulong timeStamp, string serverName, string serverAddress)
         {
             ClientSendTimeStamp = timeStamp;
-            ntpServerName = serverName;
-            ntpServerAddress = serverAddress;
+            NTPServerName = serverName;
+            NTPServerAddress = serverAddress;
 
             IsFlowComplete = false;
         }
@@ -119,9 +120,9 @@ public class NTPTimeTester : MonoBehaviour
             ntpServerNames = serverNameArr;
         }
 
-        public string[] EvaluateNTPServer(List<TimeFlow> timeFlowRecords)
+        public string[] EvaluateNTPServer(List<TimeFlow> timeFlowRecords, bool printDebugLog = false)
         {
-            if (ntpServerNames == null || ntpServerNames.Length <= SamplingThreshold)
+            if (ntpServerNames == null || ntpServerNames.Length <= 0)
                 return null;
 
             EvaluationScoreTable = new Dictionary<string, float>();
@@ -131,8 +132,11 @@ public class NTPTimeTester : MonoBehaviour
                 string _ntpServer = ntpServerNames[i];
 
                 TimeFlow[] _filterTimeFlows = timeFlowRecords
-                    .Where(x => x.ntpServerName == _ntpServer)
+                    .Where(x => x.NTPServerName == _ntpServer)
                     .ToArray();
+
+                if (_filterTimeFlows == null | _filterTimeFlows.Length <= 0)
+                    continue;
 
                 float _scoreAverage = 0;
                 int _deno = 0;
@@ -174,6 +178,24 @@ public class NTPTimeTester : MonoBehaviour
                 _resultServer[i] = _sortEvaluation[i].Key;
             }
 
+            if (printDebugLog)
+            {
+                string _log = string.Empty;
+
+                foreach (KeyValuePair<string, float> _eval in EvaluationScoreTable)
+                {
+                    _log += string.Format("[{0}] score : {1}\n", _eval.Key, _eval.Value);
+                }
+
+                _log += "---- Better Server ----\n";
+                for (int i = 0; i < _resultServer.Length; i++)
+                {
+                    _log += string.Format("[{0}] {1}\n", i, _resultServer[i]);
+                }
+
+                Debug.Log(_log);
+            }
+
             return _resultServer;
         }
 
@@ -198,6 +220,7 @@ public class NTPTimeTester : MonoBehaviour
 
     public int freq = 3;
     public bool isStop = false;
+    public int evaluationThreshold = 10;
 
     [Header("LogType")]
     public bool printOffset;
@@ -205,6 +228,7 @@ public class NTPTimeTester : MonoBehaviour
     public bool printDetailTimeStamp;
     public bool printDetailDate;
     public bool printTargetServer;
+    public bool printEvaluationResult;
 
     [Header("SocketSetting")]
     public AddressFamily addressFamily = AddressFamily.InterNetworkV6;
@@ -212,8 +236,9 @@ public class NTPTimeTester : MonoBehaviour
     public ProtocolType protocolType = ProtocolType.Udp;
 
     private bool ntpGetting = false;
+    private string[] currentServers;
     private Dictionary<string, IPEndPoint> ipEndPointTable;
-    private List<TimeFlow> ntpTimeRecords;
+    private List<TimeFlow> ntpTimeRecords = new List<TimeFlow>();
 
     //-----------------------------------------------------------------------
 
@@ -228,16 +253,19 @@ public class NTPTimeTester : MonoBehaviour
             yield break;
 
         ntpGetting = true;
+        currentServers = NTP_SERVER;
 
-        bool _isInvalid = SetIPPoint(NTP_SERVER, out ipEndPointTable);
-        if (!_isInvalid || ipEndPointTable == null || ipEndPointTable.Count <= 0)
-        {
-            ntpGetting = false;
-            yield break;
-        }
+        StartCoroutine(Cor_EvaluationListen());
 
         while (!isStop)
         {
+            bool _isInvalid = SetIPPoint(currentServers, out ipEndPointTable);
+            if (!_isInvalid || ipEndPointTable == null || ipEndPointTable.Count <= 0)
+            {
+                ntpGetting = false;
+                yield break;
+            }
+
             GetNTPTime(ipEndPointTable);
 
             yield return new WaitForSeconds(freq);
@@ -245,6 +273,25 @@ public class NTPTimeTester : MonoBehaviour
 
         isStop = false;
         ntpGetting = false;
+    }
+
+    private IEnumerator Cor_EvaluationListen()
+    {
+        while (currentServers.Length > 1)
+        {
+            NTPServerEvaluation _evaluation = new NTPServerEvaluation(currentServers, evaluationThreshold);
+
+            yield return new WaitUntil(() => ntpTimeRecords.Count >= _evaluation.SamplingThreshold);
+
+            string[] _filterServers = _evaluation.EvaluateNTPServer(ntpTimeRecords, printEvaluationResult);
+
+            if (_filterServers == null)
+                continue;
+
+            currentServers = _filterServers;
+            ntpTimeRecords = new List<TimeFlow>();
+        }
+
     }
 
     private bool SetIPPoint(string[] servers, out Dictionary<string, IPEndPoint> ipEndPointTable)
@@ -285,14 +332,14 @@ public class NTPTimeTester : MonoBehaviour
     {
         foreach (KeyValuePair<string, IPEndPoint> ipPoint in _ipEndPointTable)
         {
-            TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), ipPoint.Key, ipPoint.Value.Address.ToString());
-
             byte[] ntpData = new byte[48];
             ntpData[0] = 0x1B;
 
             new Thread(() =>
             {
-                var socket = new Socket(addressFamily, socketType, protocolType);
+                TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), ipPoint.Key, ipPoint.Value.Address.ToString());
+
+                Socket socket = new Socket(addressFamily, socketType, protocolType);
                 socket.SendTimeout = 5000;
                 socket.ReceiveTimeout = 5000;
 
@@ -333,7 +380,7 @@ public class NTPTimeTester : MonoBehaviour
             string _debugLog = string.Empty;
 
             if (printTargetServer)
-                _debugLog += string.Format("ServerName = {0}, ServerAddress = {1}\n", timeRecord.ntpServerName, timeRecord.ntpServerAddress);
+                _debugLog += string.Format("ServerName = {0}, ServerAddress = {1}\n", timeRecord.NTPServerName, timeRecord.NTPServerAddress);
 
             if (printDelay)
                 _debugLog += string.Format("Delay = {0} ms\n", timeRecord.GetRoundTripDelay);
