@@ -547,13 +547,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5930a04194341c8499fd886093baa393, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  freq: 3
+  freq: 2
+  filterRate: 0.7
   isStop: 0
-  printOffset: 0
+  evaluationThreshold: 10
+  printOffset: 1
   printDelay: 1
   printDetailTimeStamp: 0
   printDetailDate: 0
   printTargetServer: 1
+  printEvaluationResult: 1
   addressFamily: 2
   socketType: 2
   protocolType: 17

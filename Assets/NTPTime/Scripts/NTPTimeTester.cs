@@ -114,9 +114,10 @@ public class NTPTimeTester : MonoBehaviour
 
         public int SamplingThreshold { private set; get; }
 
-        public NTPServerEvaluation(string[] serverNameArr, int threshold)
+        public NTPServerEvaluation(string[] serverNameArr, int threshold, float filterRate)
         {
             SamplingThreshold = threshold;
+            filterPercentage = filterRate;
             ntpServerNames = serverNameArr;
         }
 
@@ -166,7 +167,7 @@ public class NTPTimeTester : MonoBehaviour
                 EvaluationScoreTable[_ntpServer] = _scoreAverage;
             }
 
-            int _resultCount = Mathf.RoundToInt(EvaluationScoreTable.Count * filterPercentage);
+            int _resultCount = Mathf.Clamp(Mathf.RoundToInt(EvaluationScoreTable.Count * filterPercentage), 1, EvaluationScoreTable.Count - 1);
             string[] _resultServer = new string[_resultCount];
 
             KeyValuePair<string, float>[] _sortEvaluation = EvaluationScoreTable.
@@ -180,7 +181,7 @@ public class NTPTimeTester : MonoBehaviour
 
             if (printDebugLog)
             {
-                string _log = string.Empty;
+                string _log = "<color=yellow>---- Start Evaluation ----</color>\n";
 
                 foreach (KeyValuePair<string, float> _eval in EvaluationScoreTable)
                 {
@@ -218,7 +219,8 @@ public class NTPTimeTester : MonoBehaviour
 
     private readonly DateTime ntpTimeOrigin = new DateTime(1900, 1, 1, 0, 0, 0, 0);
 
-    public int freq = 3;
+    public float freq = 3;
+    [Range(0f, 1f)] public float filterRate = 0.4f;
     public bool isStop = false;
     public int evaluationThreshold = 10;
 
@@ -279,11 +281,14 @@ public class NTPTimeTester : MonoBehaviour
     {
         while (currentServers.Length > 1)
         {
-            NTPServerEvaluation _evaluation = new NTPServerEvaluation(currentServers, evaluationThreshold);
+            NTPServerEvaluation _evaluation = new NTPServerEvaluation(currentServers, evaluationThreshold, filterRate);
 
             yield return new WaitUntil(() => ntpTimeRecords.Count >= _evaluation.SamplingThreshold);
 
-            string[] _filterServers = _evaluation.EvaluateNTPServer(ntpTimeRecords, printEvaluationResult);
+            List<TimeFlow> _records = new List<TimeFlow>();
+            _records.AddRange(ntpTimeRecords);
+
+            string[] _filterServers = _evaluation.EvaluateNTPServer(_records, printEvaluationResult);
 
             if (_filterServers == null)
                 continue;
