@@ -56,7 +56,7 @@ public class NTPTiming : MonoBehaviour
                     ulong t2 = ServerTansmitTimeStamp;
                     ulong t3 = ClientReceiveTimeStamp;
 
-                    return (int)((t1 - t0) + (t2 - t3)) / 2;
+                    return (int)( ( t1 - t0 ) + ( t2 - t3 ) ) / 2;
                 }
             }
         }
@@ -74,7 +74,7 @@ public class NTPTiming : MonoBehaviour
                     ulong t2 = ServerTansmitTimeStamp;
                     ulong t3 = ClientReceiveTimeStamp;
 
-                    return (int)((t3 - t0) - (t2 - t1));
+                    return (int)( ( t3 - t0 ) - ( t2 - t1 ) );
                 }
             }
         }
@@ -274,16 +274,19 @@ public class NTPTiming : MonoBehaviour
         StartCoroutine(Cor_EvaluationListen());
 
         //TODO : 有限迴圈
-        bool _isInvalid = SetIPPoint(currentServers, out ipEndPointTable);
-        if (!_isInvalid || ipEndPointTable == null || ipEndPointTable.Count <= 0)
+        for (int i = 0; i < 10; i++)
         {
-            ntpGetting = false;
-            yield break;
+            bool _isInvalid = SetIPPoint(currentServers, out ipEndPointTable);
+            if (!_isInvalid || ipEndPointTable == null || ipEndPointTable.Count <= 0)
+            {
+                ntpGetting = false;
+                yield break;
+            }
+
+            GetNTPTime(ipEndPointTable);
+
+            yield return new WaitForSeconds(freq);
         }
-
-        GetNTPTime(ipEndPointTable);
-
-        yield return new WaitForSeconds(freq);
 
         ntpGetting = false;
     }
@@ -324,10 +327,10 @@ public class NTPTiming : MonoBehaviour
                 IPAddress[] _ipv4Address = GetServerAddress(servers[i], AddressFamily.InterNetwork);
                 IPAddress[] _ipv6Address = GetServerAddress(servers[i], AddressFamily.InterNetworkV6);
 
-                if (_ipv4Address == null)
+                if (_ipv4Address != null)
                     _ipv4AddressList.Add(_ipv4Address[0]);
 
-                if (_ipv6Address == null)
+                if (_ipv6Address != null)
                     _ipv6AddressList.Add(_ipv6Address[0]);
 
                 if (_ipv4Address == null && _ipv6Address == null)
@@ -420,7 +423,7 @@ public class NTPTiming : MonoBehaviour
 
         ntpTimeRecords.Add(timeRecord);
 
-        bool _isPrint = (printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer);
+        bool _isPrint = ( printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer );
 
         if (_isPrint)
         {
@@ -470,7 +473,7 @@ public class NTPTiming : MonoBehaviour
         ulong intPart = (ulong)datas[int_4] << 24 | (ulong)datas[int_3] << 16 | (ulong)datas[int_2] << 8 | (ulong)datas[int_1];
         ulong fractPart = (ulong)datas[fract_4] << 24 | (ulong)datas[fract_3] << 16 | (ulong)datas[fract_2] << 8 | (ulong)datas[fract_1];
 
-        ulong milliseconds = (intPart * 1000) + ((fractPart * 1000) / 0x100000000L);
+        ulong milliseconds = ( intPart * 1000 ) + ( ( fractPart * 1000 ) / 0x100000000L );
 
         return milliseconds;
     }
