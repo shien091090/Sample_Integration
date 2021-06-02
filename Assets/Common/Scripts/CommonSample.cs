@@ -4,31 +4,43 @@ using UnityEngine;
 
 public class CommonSample : MonoBehaviour
 {
+    Stack<IEnumerator> numStack = new Stack<IEnumerator>();
 
-    public enum ActionType
+    public class NumStorage
     {
-        Get,
-        Catch,
-        Kick,
-        Throw
+        public int num;
     }
+
+    private NumStorage numStorage;
 
     public void BTN_Test()
     {
-        BestDictionary _dict = new BestDictionary("Name", "Type", "ID");
-        _dict.Add("Peter", ActionType.Catch, 100001);
-        _dict.Add("Andy", ActionType.Throw, 100002);
-        _dict.Add("Cindy", ActionType.Get, 100003);
-        _dict.Add("Shien", ActionType.Kick, 100004);
-        _dict.Add("Glen", ActionType.Catch, 100005);
+        numStorage = new NumStorage() { num = 5 };
 
-        bool _checkUniform = _dict.CheckUniform();
-        Debug.Log("CheckUniform = " + _checkUniform);
+        numStack.Push(Cor_Test(numStorage));
+        numStack.Push(Cor_Test(numStorage));
+        numStack.Push(Cor_Test(numStorage));
+        numStack.Push(Cor_Test(numStorage));
 
-        BestDictionary.Extracting _ex = _dict.ExtractToList("Type", ActionType.Throw, ActionType.Catch);
-        for (int i = 0; i < _ex.BodyList.Count; i++)
+        StartCoroutine(Cor_Pop());
+    }
+
+    public IEnumerator Cor_Pop()
+    {
+        while (numStack.Count > 0)
         {
-            Debug.Log(string.Format("[{0}] = {1}", _ex.IndexList[i], _ex.BodyList[i]));
+            yield return numStack.Pop();
+
         }
+
+    }
+
+    private IEnumerator Cor_Test(NumStorage storage)
+    {
+        Debug.Log(storage.num);
+
+        storage.num *= 2;
+
+        yield return new WaitForSeconds(1f);
     }
 }
