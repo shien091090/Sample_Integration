@@ -7,7 +7,7 @@ public class NTPTimeTester : MonoBehaviour
 
     public void BTN_NTPTest()
     {
-        StartCoroutine(NTPTiming.Instance.Cor_GetNTPTime());
+        //StartCoroutine(NTPTiming.Instance.Cor_GetNTPTime());
     }
 
 

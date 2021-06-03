@@ -4,43 +4,36 @@ using UnityEngine;
 
 public class CommonSample : MonoBehaviour
 {
-    Stack<IEnumerator> numStack = new Stack<IEnumerator>();
-
-    public class NumStorage
+    public struct NumStorage
     {
-        public int num;
+        public Dictionary<string, int> numTable;
+
+        public NumStorage(Dictionary<string, int> _numTable)
+        {
+            numTable = new Dictionary<string, int>(_numTable);
+
+        }
     }
 
-    private NumStorage numStorage;
+    private Dictionary<string, int> mainNumTable;
+    private NumStorage numStorageA;
+    private NumStorage numStorageB;
 
     public void BTN_Test()
     {
-        numStorage = new NumStorage() { num = 5 };
+        mainNumTable = new Dictionary<string, int>();
+        mainNumTable.Add("A", 1);
+        mainNumTable.Add("B", 3);
 
-        numStack.Push(Cor_Test(numStorage));
-        numStack.Push(Cor_Test(numStorage));
-        numStack.Push(Cor_Test(numStorage));
-        numStack.Push(Cor_Test(numStorage));
+        numStorageA = new NumStorage(mainNumTable);
+        numStorageB = new NumStorage(mainNumTable);
 
-        StartCoroutine(Cor_Pop());
-    }
+        mainNumTable["A"] = 10;
 
-    public IEnumerator Cor_Pop()
-    {
-        while (numStack.Count > 0)
-        {
-            yield return numStack.Pop();
+        Debug.Log(numStorageA.numTable["A"]);
 
-        }
+        numStorageA.numTable["B"] = 15;
 
-    }
-
-    private IEnumerator Cor_Test(NumStorage storage)
-    {
-        Debug.Log(storage.num);
-
-        storage.num *= 2;
-
-        yield return new WaitForSeconds(1f);
+        Debug.Log(numStorageB.numTable["B"]);
     }
 }
