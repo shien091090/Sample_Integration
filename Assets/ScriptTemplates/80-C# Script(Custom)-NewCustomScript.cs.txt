@@ -1,0 +1,39 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class #SCRIPTNAME#: MonoBehaviour
+{
+    #region SubClass
+
+    #endregion
+
+    #region SubEnum
+
+    #endregion
+
+    #region Variable
+
+    #endregion
+
+    #region MonoFunction
+
+    void Awake()
+    {
+
+    }
+
+    #endregion
+
+    #region StaticFunction
+
+    #endregion
+
+    #region CustomFunction
+
+    #endregion
+
+    #region Coroutine
+
+    #endregion
+}
