@@ -36,4 +36,9 @@ public class CommonSample : MonoBehaviour
 
         Debug.Log(numStorageB.numTable["B"]);
     }
+
+    public void FunctionA()
+    {
+        Debug.Log("FunctionA");
+    }
 }
