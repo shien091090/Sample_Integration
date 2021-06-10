@@ -23,4 +23,9 @@ public class CommonSample : MonoBehaviour
     {
 
     }
+
+    public void FunctionA()
+    {
+        Debug.Log("FunctionA");
+    }
 }
