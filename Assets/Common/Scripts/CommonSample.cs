@@ -22,6 +22,7 @@ public class CommonSample : MonoBehaviour
     public void BTN_Test()
     {
         FunctionB(10);
+        FunctionC(0.1f);
     }
 
     public void FunctionA()
@@ -32,5 +33,12 @@ public class CommonSample : MonoBehaviour
     public void FunctionB(int a)
     {
         Debug.Log("FunctionB = " + a);
+    }
+
+
+
+    public void FunctionC(float f)
+    {
+        Debug.Log("FunctionC = " + Mathf.Round(f));
     }
 }
