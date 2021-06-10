@@ -21,20 +21,7 @@ public class CommonSample : MonoBehaviour
 
     public void BTN_Test()
     {
-        mainNumTable = new Dictionary<string, int>();
-        mainNumTable.Add("A", 1);
-        mainNumTable.Add("B", 3);
 
-        numStorageA = new NumStorage(mainNumTable);
-        numStorageB = new NumStorage(mainNumTable);
-
-        mainNumTable["A"] = 10;
-
-        Debug.Log(numStorageA.numTable["A"]);
-
-        numStorageA.numTable["B"] = 15;
-
-        Debug.Log(numStorageB.numTable["B"]);
     }
 
     public void FunctionA()
