@@ -21,11 +21,22 @@ public class CommonSample : MonoBehaviour
 
     public void BTN_Test()
     {
-
+        FunctionB("S");
+        FunctionC(0.1f);
     }
 
     public void FunctionA()
     {
         Debug.Log("FunctionA");
+    }
+
+    public void FunctionB(string str)
+    {
+        Debug.Log("FunctionB = " + str));
+    }
+
+    public void FunctionC(float f)
+    {
+        Debug.Log("FunctionC = " + Mathf.Round(f));
     }
 }
