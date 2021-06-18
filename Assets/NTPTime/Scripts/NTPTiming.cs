@@ -6,223 +6,14 @@ using System.Net;
 using System.Threading;
 using System;
 using UnityEngine;
+using SNShien.Common.MathTools;
 
 public class NTPTiming : MonoBehaviour
 {
-    public enum TimeFlowState
-    {
-        NotCompleted,
-        Valid,
-        Invalid
-    }
-
-    public enum ConnectState
-    {
-        Initialize,
-        Broken,
-        StandBy,
-        Getting
-    }
-
-    public class TimeFlow
-    {
-        public ulong ClientSendTimeStamp { private set; get; }
-        public ulong ServerReceiveTimeStamp { private set; get; }
-        public ulong ClientReceiveTimeStamp { private set; get; }
-        public ulong ServerTansmitTimeStamp { private set; get; }
-        public bool IsFlowComplete { private set; get; }
-        public string Log { private set; get; }
-        public string NTPServerName { private set; get; }
-        public string NTPServerAddress { private set; get; }
-
-        public TimeFlowState GetState
-        {
-            get
-            {
-                if (!IsFlowComplete)
-                    return TimeFlowState.NotCompleted;
-                else
-                {
-                    if (ServerTansmitTimeStamp == 0)
-                        return TimeFlowState.Invalid;
-                    else
-                        return TimeFlowState.Valid;
-                }
-            }
-        }
-
-        public int GetTimeOffset
-        {
-            get
-            {
-                if (GetState != TimeFlowState.Valid)
-                    return -1;
-                else
-                {
-                    ulong t0 = ClientSendTimeStamp;
-                    ulong t1 = ServerReceiveTimeStamp;
-                    ulong t2 = ServerTansmitTimeStamp;
-                    ulong t3 = ClientReceiveTimeStamp;
-
-                    return (int)( ( t1 - t0 ) + ( t2 - t3 ) ) / 2;
-                }
-            }
-        }
-
-        public int GetRoundTripDelay
-        {
-            get
-            {
-                if (GetState != TimeFlowState.Valid)
-                    return -1;
-                else
-                {
-                    ulong t0 = ClientSendTimeStamp;
-                    ulong t1 = ServerReceiveTimeStamp;
-                    ulong t2 = ServerTansmitTimeStamp;
-                    ulong t3 = ClientReceiveTimeStamp;
-
-                    return (int)( ( t3 - t0 ) - ( t2 - t1 ) );
-                }
-            }
-        }
-
-        public TimeFlow(ulong timeStamp, string serverName, string serverAddress)
-        {
-            ClientSendTimeStamp = timeStamp;
-            NTPServerName = serverName;
-            NTPServerAddress = serverAddress;
-
-            IsFlowComplete = false;
-        }
-
-        public TimeFlow SetReceiveTime(ulong _serverReceive, ulong _serverTansmit, ulong _clientNow, string _log = null)
-        {
-            ServerReceiveTimeStamp = _serverReceive;
-            ServerTansmitTimeStamp = _serverTansmit;
-            ClientReceiveTimeStamp = _clientNow;
-            Log = _log;
-
-            IsFlowComplete = true;
-
-            return this;
-        }
-    }
-
-    //-----------------------------------------------------------------------
-
-    public class NTPServerEvaluation
-    {
-        private List<string> ntpServerNames;
-        private int invalidScore = 1;
-        private float filterPercentage = 0.4f;
-
-        public Dictionary<string, float> EvaluationScoreTable { private set; get; }
-
-        public int SamplingThreshold { private set; get; }
-
-        public NTPServerEvaluation(List<string> serverNameArr, int threshold, float filterRate)
-        {
-            SamplingThreshold = threshold;
-            filterPercentage = filterRate;
-            ntpServerNames = serverNameArr;
-        }
-
-        public string[] EvaluateNTPServer(List<TimeFlow> timeFlowRecords, bool printDebugLog = false)
-        {
-            if (ntpServerNames == null || ntpServerNames.Count <= 0)
-                return null;
-
-            List<TimeFlow> _records = new List<TimeFlow>();
-            _records.AddRange(timeFlowRecords);
-
-            EvaluationScoreTable = new Dictionary<string, float>();
-
-            for (int i = 0; i < ntpServerNames.Count; i++)
-            {
-                string _ntpServer = ntpServerNames[i];
-
-                TimeFlow[] _filterTimeFlows = _records
-                    .Where(x => x.NTPServerName == _ntpServer)
-                    .ToArray();
-
-                if (_filterTimeFlows == null | _filterTimeFlows.Length <= 0)
-                    continue;
-
-                float _scoreAverage = 0;
-                int _deno = 0;
-                for (int j = 0; j < _filterTimeFlows.Length; j++)
-                {
-                    int _score = 0;
-
-                    switch (_filterTimeFlows[j].GetState)
-                    {
-                        case TimeFlowState.NotCompleted:
-                            continue;
-
-                        case TimeFlowState.Valid:
-                            _score = ScoreAlgorithm(_filterTimeFlows[j].GetRoundTripDelay);
-                            break;
-
-                        case TimeFlowState.Invalid:
-                            _score = invalidScore;
-                            break;
-                    }
-
-                    _scoreAverage += _score;
-                    _deno++;
-                }
-                _scoreAverage /= _deno;
-
-                EvaluationScoreTable[_ntpServer] = _scoreAverage;
-            }
-
-
-            int _removeCount = Mathf.Clamp(Mathf.RoundToInt(EvaluationScoreTable.Count - EvaluationScoreTable.Count * filterPercentage), 0, EvaluationScoreTable.Count - 1);
-            string[] _removeServer = new string[_removeCount];
-
-            KeyValuePair<string, float>[] _sortEvaluation = EvaluationScoreTable.
-                OrderBy(x => x.Value).
-                ToArray();
-
-            for (int i = 0; i < _removeServer.Length; i++)
-            {
-                _removeServer[i] = _sortEvaluation[i].Key;
-            }
-
-            if (printDebugLog)
-            {
-                string _log = "<color=yellow>---- Start Evaluation ----</color>\n";
-
-                foreach (KeyValuePair<string, float> _eval in EvaluationScoreTable)
-                {
-                    _log += string.Format("[{0}] score : {1}\n", _eval.Key, _eval.Value);
-                }
-
-                _log += "---- Remove Server ----\n";
-                for (int i = 0; i < _removeServer.Length; i++)
-                {
-                    _log += string.Format("[{0}] {1}\n", i, _removeServer[i]);
-                }
-
-                Debug.Log(_log);
-            }
-
-            return _removeServer;
-        }
-
-        private int ScoreAlgorithm(int delayValue)
-        {
-            return Mathf.RoundToInt(5000f / Mathf.Pow(delayValue, 1.55f));
-        }
-    }
-
-    //-----------------------------------------------------------------------
-
     private static NTPTiming _instance;
     public static NTPTiming Instance { get { return _instance; } }
 
-    private List<string> NTP_SERVER = new List<string>()
+    private string[] NTP_SERVER = new string[]
     {
         "TIME.google.com",
         "TIME1.google.com",
@@ -231,11 +22,11 @@ public class NTPTiming : MonoBehaviour
         "TIME4.google.com"
     };
 
-    private readonly DateTime ntpTimeOrigin = new DateTime(1900, 1, 1, 0, 0, 0, 0);
-    private int serverConnectRetryTimes = 5;
-    //public float freq = 3;
-    //[Range(0f, 1f)] public float filterRate = 0.4f;
-    //public int evaluationThreshold = 10;
+    private static NTPAnalysisRecord s_ntpAnalysisRecord;
+    private static DateTime ntpTimeOrigin = new DateTime(1900, 1, 1, 0, 0, 0, 0);
+    [SerializeField] private int serverConnectRetryTimes = 5;
+    [SerializeField] private int ntpOutlierRejectValue = 50; //ms
+    [SerializeField] private ConnectState CurrentConnectState;
 
     [Header("LogType")]
     public bool printOffset;
@@ -244,13 +35,6 @@ public class NTPTiming : MonoBehaviour
     public bool printDetailDate;
     public bool printTargetServer;
     public bool printEvaluationResult;
-
-    public static ConnectState CurrentConnectState { private set; get; }
-    private static NTPServerEvaluation evaluationMachine;
-    private List<string> currentServers;
-    private AddressFamily currentAddressFamily = AddressFamily.Unknown;
-    private Dictionary<string, IPEndPoint> ipEndPointTable;
-    private List<TimeFlow> ntpTimeRecords;
 
     //-----------------------------------------------------------------------
 
@@ -265,29 +49,40 @@ public class NTPTiming : MonoBehaviour
     private void Init()
     {
         CurrentConnectState = ConnectState.Initialize;
+        s_ntpAnalysisRecord = new NTPAnalysisRecord(NTP_SERVER);
 
-        evaluationMachine = null;
-        currentAddressFamily = AddressFamily.Unknown;
-        ipEndPointTable = new Dictionary<string, IPEndPoint>();
-        ntpTimeRecords = new List<TimeFlow>();
-
-        currentServers = NTP_SERVER;
         StartCoroutine(Cor_BuildConnectTarget(serverConnectRetryTimes));
     }
 
-    public void GetNTPTime(int connectFreq, float filterRate, int evaluationThreshold, Action<long> callback)
+    public void GetNTPTime(float connectFreq, int evaluationThreshold, Action<ulong> callback)
     {
         if (CurrentConnectState == ConnectState.Broken)
         {
             StopAllCoroutines();
             Init();
+            return;
         }
-        else if (CurrentConnectState == ConnectState.Initialize || CurrentConnectState == ConnectState.Getting)
+        else if (CurrentConnectState != ConnectState.StandBy)
             return;
 
-        StartCoroutine(Cor_EvaluationListen(filterRate, evaluationThreshold));
-        StartCoroutine(Cor_RefreshNTPTime(connectFreq));
+        StartCoroutine(Cor_GetNTPTime(connectFreq, evaluationThreshold, callback));
+    }
 
+    private IEnumerator Cor_GetNTPTime(float connectFreq, int evaluationThreshold, Action<ulong> callback)
+    {
+        Coroutine _evaluationListen = StartCoroutine(Cor_EvaluationListen(evaluationThreshold));
+        Coroutine _refreshNTPTime = StartCoroutine(Cor_RefreshNTPTime(connectFreq));
+
+        yield return new WaitUntil(() => CurrentConnectState == ConnectState.Response);
+        yield return _evaluationListen;
+        yield return _refreshNTPTime;
+
+        List<TimeFlow> _bestRecords = s_ntpAnalysisRecord.GetBestNtpTimeRecord;
+        List<TimeFlow> _filterRecords = GetOutlierRejectResult(_bestRecords, ntpOutlierRejectValue);
+        ulong _ntpTimeStamp = ReturnAnalysisNTPTime(_filterRecords);
+
+        Init();
+        callback.Invoke(_ntpTimeStamp);
     }
 
     private IEnumerator Cor_BuildConnectTarget(int retryTimes)
@@ -296,11 +91,14 @@ public class NTPTiming : MonoBehaviour
         {
             yield return new WaitUntil(() => Application.internetReachability == NetworkReachability.ReachableViaLocalAreaNetwork);
 
-            bool _isSuccess = SetIPPoint(currentServers, out ipEndPointTable);
-            if (_isSuccess && ipEndPointTable != null && ipEndPointTable.Count > 0)
+            Dictionary<string, IPEndPoint> _ipEndPointTable = new Dictionary<string, IPEndPoint>();
+            AddressFamily _usedAddressFamily = AddressFamily.Unspecified;
+            bool _isSuccess = SetIPPointAndCheckValid(s_ntpAnalysisRecord.CurrentServers, out _ipEndPointTable, out _usedAddressFamily);
+            if (_isSuccess && _ipEndPointTable != null && _ipEndPointTable.Count > 0)
             {
+                s_ntpAnalysisRecord.SetIPTarget(_ipEndPointTable, _usedAddressFamily);
                 CurrentConnectState = ConnectState.StandBy;
-                break;
+                yield break;
             }
             else
                 yield return new WaitForSeconds(1);
@@ -309,52 +107,84 @@ public class NTPTiming : MonoBehaviour
         CurrentConnectState = ConnectState.Broken;
     }
 
-    public IEnumerator Cor_RefreshNTPTime(float freq)
+    private IEnumerator Cor_EvaluationListen(int evaluationThreshold)
     {
-        yield return new WaitUntil(() => evaluationMachine != null && ipEndPointTable != null);
+        if (CurrentConnectState == ConnectState.Initialize)
+            yield return new WaitUntil(() => CurrentConnectState == ConnectState.StandBy);
+
+        s_ntpAnalysisRecord.CreateEvaluationMachine(evaluationThreshold);
+        while (s_ntpAnalysisRecord.CurrentServers.Count > 0)
+        {
+            yield return new WaitUntil(() => s_ntpAnalysisRecord.IsCrossEvaluationThreshold());
+            s_ntpAnalysisRecord.CutAndEvaluate(true);
+        }
+
+        CurrentConnectState = ConnectState.Response;
+
+    }
+
+    private IEnumerator Cor_RefreshNTPTime(float freq)
+    {
+        yield return new WaitUntil(() => s_ntpAnalysisRecord.IsReadyForEvaluation());
 
         CurrentConnectState = ConnectState.Getting;
 
         while (CurrentConnectState == ConnectState.Getting)
         {
-            GetNTPTime(ipEndPointTable);
+            GetNTPTime(s_ntpAnalysisRecord.IpEndPointTable, s_ntpAnalysisRecord.CurrentAddressFamily);
 
             yield return new WaitForSeconds(freq);
         }
     }
 
-    private IEnumerator Cor_EvaluationListen(float filterRate, int evaluationThreshold)
+    private List<TimeFlow> GetOutlierRejectResult(List<TimeFlow> records, int rejectValue)
     {
-        if (CurrentConnectState == ConnectState.Initialize)
-            yield return new WaitUntil(() => CurrentConnectState == ConnectState.StandBy);
-
-        evaluationMachine = new NTPServerEvaluation(currentServers, evaluationThreshold, filterRate);
-        while (currentServers.Count > 1)
+        int _offsetAverage = SimpleAlgorithm.GetAverageAfterProcess(records.Count, () =>
         {
-            ntpTimeRecords = new List<TimeFlow>();
-
-            yield return new WaitUntil(() =>
-            ntpTimeRecords != null &&
-            ntpTimeRecords.Count >= evaluationMachine.SamplingThreshold);
-
-            List<TimeFlow> _records = new List<TimeFlow>();
-            _records.AddRange(ntpTimeRecords);
-
-            string[] _removeServers = evaluationMachine.EvaluateNTPServer(_records, printEvaluationResult);
-
-            if (_removeServers == null)
-                continue;
-
-            for (int i = 0; i < _removeServers.Length; i++)
+            int _sum = 0;
+            for (int i = 0; i < records.Count; i++)
             {
-                currentServers.Remove(_removeServers[i]);
-                ipEndPointTable.Remove(_removeServers[i]);
+                _sum += records[i].GetTimeOffset;
             }
+
+            return _sum;
+        });
+
+        List<TimeFlow> _result = new List<TimeFlow>();
+        for (int i = 0; i < records.Count; i++)
+        {
+            TimeFlow _record = records[i];
+
+            if (Mathf.Abs(_record.GetTimeOffset - _offsetAverage) <= rejectValue)
+                _result.Add(_record);
         }
 
+        return _result;
     }
 
-    private bool SetIPPoint(List<string> servers, out Dictionary<string, IPEndPoint> ipEndPointTable)
+    private ulong ReturnAnalysisNTPTime(List<TimeFlow> records)
+    {
+        int _offsetAverage = SimpleAlgorithm.GetAverageAfterProcess(records.Count, () =>
+        {
+            int _sum = 0;
+            for (int i = 0; i < records.Count; i++)
+            {
+                _sum += records[i].GetTimeOffset;
+            }
+
+            return _sum;
+        });
+
+        ulong _clientNowTimeStamp = GetClientNowTimeStamp();
+        ulong _fixedTimeStamp = _clientNowTimeStamp + (ulong)_offsetAverage;
+
+        Debug.Log(string.Format("NTP Date= {0}\n", GetDateDetailLog(_fixedTimeStamp)));
+        Debug.Log(string.Format("Client Date= {0}\n", GetDateDetailLog(_clientNowTimeStamp)));
+
+        return _fixedTimeStamp;
+    }
+
+    private bool SetIPPointAndCheckValid(List<string> servers, out Dictionary<string, IPEndPoint> ipEndPointTable, out AddressFamily usedAddressFamily)
     {
         Dictionary<string, IPEndPoint> _ipEndPointTable = new Dictionary<string, IPEndPoint>();
 
@@ -388,12 +218,12 @@ public class NTPTiming : MonoBehaviour
 
         if (_targetAddressTable.Count <= 0)
         {
-            currentAddressFamily = AddressFamily.Unknown;
+            usedAddressFamily = AddressFamily.Unknown;
             ipEndPointTable = null;
             return false;
         }
         else
-            currentAddressFamily = _useIpv4 ? AddressFamily.InterNetwork : AddressFamily.InterNetworkV6;
+            usedAddressFamily = _useIpv4 ? AddressFamily.InterNetwork : AddressFamily.InterNetworkV6;
 
         foreach (KeyValuePair<string, IPAddress> ipInfo in _targetAddressTable)
         {
@@ -419,7 +249,7 @@ public class NTPTiming : MonoBehaviour
             return _filterAddresses;
     }
 
-    private void GetNTPTime(Dictionary<string, IPEndPoint> _ipEndPointTable)
+    private void GetNTPTime(Dictionary<string, IPEndPoint> _ipEndPointTable, AddressFamily _addressFamily)
     {
         Dictionary<string, IPEndPoint> _tempTable = new Dictionary<string, IPEndPoint>(_ipEndPointTable);
 
@@ -432,7 +262,7 @@ public class NTPTiming : MonoBehaviour
             {
                 TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), ipPoint.Key, ipPoint.Value.Address.ToString());
 
-                Socket socket = new Socket(currentAddressFamily, SocketType.Dgram, ProtocolType.Udp);
+                Socket socket = new Socket(_addressFamily, SocketType.Dgram, ProtocolType.Udp);
                 socket.SendTimeout = 5000;
                 socket.ReceiveTimeout = 5000;
 
@@ -461,57 +291,56 @@ public class NTPTiming : MonoBehaviour
 
     private void RecordNTPRequestResult(TimeFlow timeRecord)
     {
-        if (ntpTimeRecords == null)
-            ntpTimeRecords = new List<TimeFlow>();
-
-        ntpTimeRecords.Add(timeRecord);
+        s_ntpAnalysisRecord.AddRecord(timeRecord);
 
         bool _isPrint = ( printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer );
-
         if (_isPrint)
-        {
-            string _debugLog = string.Empty;
-
-            if (printTargetServer)
-                _debugLog += string.Format("ServerName = {0}, ServerAddress = {1}\n", timeRecord.NTPServerName, timeRecord.NTPServerAddress);
-
-            if (printDelay)
-                _debugLog += string.Format("Delay = {0} ms\n", timeRecord.GetRoundTripDelay);
-
-            if (printOffset)
-                _debugLog += string.Format("Offset = {0} ms\n", timeRecord.GetTimeOffset);
-
-            if (printDetailTimeStamp)
-            {
-                _debugLog += string.Format("ClientSendTimeStamp = {0} ms\n", timeRecord.ClientSendTimeStamp);
-                _debugLog += string.Format("ServerReceiveTimeStamp = {0} ms\n", timeRecord.ServerReceiveTimeStamp);
-                _debugLog += string.Format("ClientReceiveTimeStamp = {0} ms\n", timeRecord.ClientReceiveTimeStamp);
-                _debugLog += string.Format("ServerTansmitTimeStamp = {0} ms\n", timeRecord.ServerTansmitTimeStamp);
-            }
-
-            if (printDetailDate)
-            {
-                _debugLog += string.Format("ClientSendTime Date = {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientSendTimeStamp)));
-                _debugLog += string.Format("ServerReceiveTime Date= {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerReceiveTimeStamp)));
-                _debugLog += string.Format("ClientReceiveTime Date= {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ClientReceiveTimeStamp)));
-                _debugLog += string.Format("ServerTansmitTime Date= {0}\n", GetDateDetailLog(ConvertMilliSecondToDate(timeRecord.ServerTansmitTimeStamp)));
-            }
-
-            if (!string.IsNullOrEmpty(timeRecord.Log))
-                _debugLog += string.Format("[Error Log] : {0}\n", timeRecord.Log);
-
-            if (!string.IsNullOrEmpty(_debugLog))
-                Debug.Log(_debugLog);
-        }
+            PrintDebugLog(timeRecord);
     }
 
-    private ulong GetClientNowTimeStamp()
+    private void PrintDebugLog(TimeFlow timeFlowData)
+    {
+        string _debugLog = string.Empty;
+
+        if (printTargetServer)
+            _debugLog += string.Format("ServerName = {0}, ServerAddress = {1}\n", timeFlowData.NTPServerName, timeFlowData.NTPServerAddress);
+
+        if (printDelay)
+            _debugLog += string.Format("Delay = {0} ms\n", timeFlowData.GetRoundTripDelay);
+
+        if (printOffset)
+            _debugLog += string.Format("Offset = {0} ms\n", timeFlowData.GetTimeOffset);
+
+        if (printDetailTimeStamp)
+        {
+            _debugLog += string.Format("ClientSendTimeStamp = {0} ms\n", timeFlowData.ClientSendTimeStamp);
+            _debugLog += string.Format("ServerReceiveTimeStamp = {0} ms\n", timeFlowData.ServerReceiveTimeStamp);
+            _debugLog += string.Format("ClientReceiveTimeStamp = {0} ms\n", timeFlowData.ClientReceiveTimeStamp);
+            _debugLog += string.Format("ServerTansmitTimeStamp = {0} ms\n", timeFlowData.ServerTansmitTimeStamp);
+        }
+
+        if (printDetailDate)
+        {
+            _debugLog += string.Format("ClientSendTime Date = {0}\n", GetDateDetailLog(timeFlowData.ClientSendTimeStamp));
+            _debugLog += string.Format("ServerReceiveTime Date= {0}\n", GetDateDetailLog(timeFlowData.ServerReceiveTimeStamp));
+            _debugLog += string.Format("ClientReceiveTime Date= {0}\n", GetDateDetailLog(timeFlowData.ClientReceiveTimeStamp));
+            _debugLog += string.Format("ServerTansmitTime Date= {0}\n", GetDateDetailLog(timeFlowData.ServerTansmitTimeStamp));
+        }
+
+        if (!string.IsNullOrEmpty(timeFlowData.Log))
+            _debugLog += string.Format("[Error Log] : {0}\n", timeFlowData.Log);
+
+        if (!string.IsNullOrEmpty(_debugLog))
+            Debug.Log(_debugLog);
+    }
+
+    public static ulong GetClientNowTimeStamp()
     {
         TimeSpan _span = DateTime.UtcNow - ntpTimeOrigin;
         return (ulong)_span.TotalMilliseconds;
     }
 
-    private ulong OctBitsPackToMilliseconds(byte[] datas, int int_4, int int_3, int int_2, int int_1, int fract_4, int fract_3, int fract_2, int fract_1)
+    public static ulong OctBitsPackToMilliseconds(byte[] datas, int int_4, int int_3, int int_2, int int_1, int fract_4, int fract_3, int fract_2, int fract_1)
     {
         ulong intPart = (ulong)datas[int_4] << 24 | (ulong)datas[int_3] << 16 | (ulong)datas[int_2] << 8 | (ulong)datas[int_1];
         ulong fractPart = (ulong)datas[fract_4] << 24 | (ulong)datas[fract_3] << 16 | (ulong)datas[fract_2] << 8 | (ulong)datas[fract_1];
@@ -521,13 +350,19 @@ public class NTPTiming : MonoBehaviour
         return milliseconds;
     }
 
-    private DateTime ConvertMilliSecondToDate(ulong ms)
+    public static DateTime ConvertMilliSecondToDate(ulong ms)
     {
         return ntpTimeOrigin.Add(TimeSpan.FromMilliseconds(ms));
     }
 
-    private string GetDateDetailLog(DateTime date)
+    public static string GetDateDetailLog(DateTime date)
     {
         return string.Format("{0:0000}.{1:00}.{2:00} / {3:00}:{4:00}:{5:00}:{6:0000}...{7}", date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, date.Millisecond, date.Ticks);
+    }
+
+    public static string GetDateDetailLog(ulong ms)
+    {
+        DateTime _date = ConvertMilliSecondToDate(ms);
+        return GetDateDetailLog(_date);
     }
 }
