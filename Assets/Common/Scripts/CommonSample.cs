@@ -1,44 +1,22 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using System;
 
 public class CommonSample : MonoBehaviour
 {
-    public struct NumStorage
+    public Button button;
+
+    public void BTN_A()
     {
-        public Dictionary<string, int> numTable;
-
-        public NumStorage(Dictionary<string, int> _numTable)
-        {
-            numTable = new Dictionary<string, int>(_numTable);
-
-        }
+        Debug.Log("BTN_A");
+        Destroy(button.gameObject);
     }
 
-    private Dictionary<string, int> mainNumTable;
-    private NumStorage numStorageA;
-    private NumStorage numStorageB;
-
-    public void BTN_Test()
+    public void BTN_B()
     {
-        FunctionB(10);
-        FunctionC(0.1f);
+        Debug.Log("BTN_B");
     }
 
-    public void FunctionA()
-    {
-        Debug.Log("FunctionA");
-    }
-
-    public void FunctionB(int a)
-    {
-        Debug.Log("FunctionB = " + a);
-    }
-
-
-
-    public void FunctionC(float f)
-    {
-        Debug.Log("FunctionC = " + Mathf.Round(f));
-    }
 }
