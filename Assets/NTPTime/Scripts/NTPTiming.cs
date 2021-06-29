@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using System;
 using UnityEngine;
 using SNShien.Common.MathTools;
@@ -131,7 +132,7 @@ public class NTPTiming : MonoBehaviour
 
         while (CurrentConnectState == ConnectState.Getting)
         {
-            GetNTPTime(s_ntpAnalysisRecord.IpEndPointTable, s_ntpAnalysisRecord.CurrentAddressFamily);
+            //GetNTPTime(s_ntpAnalysisRecord.IpEndPointTable, s_ntpAnalysisRecord.CurrentAddressFamily);
 
             yield return new WaitForSeconds(freq);
         }
@@ -260,11 +261,15 @@ public class NTPTiming : MonoBehaviour
 
             new Thread(() =>
             {
-                TimeFlow _timeRecord = new TimeFlow(GetClientNowTimeStamp(), ipPoint.Key, ipPoint.Value.Address.ToString());
+                TimeFlow _timeRecord = new TimeFlow(
+                    GetClientNowTimeStamp(),
+                    ipPoint.Key,
+                    ipPoint.Value.Address.ToString(),
+                    Thread.CurrentThread.ManagedThreadId);
 
                 Socket socket = new Socket(_addressFamily, SocketType.Dgram, ProtocolType.Udp);
-                socket.SendTimeout = 5000;
-                socket.ReceiveTimeout = 5000;
+                socket.SendTimeout = 2000;
+                socket.ReceiveTimeout = 2000;
 
                 try
                 {
@@ -289,8 +294,48 @@ public class NTPTiming : MonoBehaviour
         }
     }
 
+    private async Task<TimeFlow> AsyncGetNTPTime(string serverName, IPEndPoint ipInfo, AddressFamily _addressFamily)
+    {
+        byte[] ntpData = new byte[48];
+        ntpData[0] = 0x1B;
+
+        TimeFlow _timeRecord = new TimeFlow(
+           GetClientNowTimeStamp(),
+           serverName,
+           ipInfo.Address.ToString(),
+           Thread.CurrentThread.ManagedThreadId);
+
+        Socket socket = new Socket(_addressFamily, SocketType.Dgram, ProtocolType.Udp);
+        socket.SendTimeout = 2000;
+        socket.ReceiveTimeout = 2000;
+
+        try
+        {
+            socket.SendTo(ntpData, ipInfo);
+            socket.Receive(ntpData);
+
+            ulong _serverReceiveTimestamp = OctBitsPackToMilliseconds(ntpData, 40, 41, 42, 43, 44, 45, 46, 47);
+            ulong _serverTransmitTimestamp = OctBitsPackToMilliseconds(ntpData, 32, 33, 34, 35, 36, 37, 38, 39);
+
+            socket.Close();
+
+            _timeRecord.SetReceiveTime(_serverReceiveTimestamp, _serverTransmitTimestamp, GetClientNowTimeStamp());
+            return _timeRecord;
+        }
+        catch (Exception _exception)
+        {
+            socket.Close();
+
+            _timeRecord.SetReceiveTime(0, 0, 0, string.Format("NTPClockGetError : {0}", _exception));
+            return _timeRecord;
+        }
+    }
+
     private void RecordNTPRequestResult(TimeFlow timeRecord)
     {
+        if (timeRecord == null)
+            return;
+
         s_ntpAnalysisRecord.AddRecord(timeRecord);
 
         bool _isPrint = ( printDelay || printOffset || printDetailTimeStamp || printDetailDate || printTargetServer );

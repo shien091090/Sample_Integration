@@ -61,28 +61,33 @@ public class NTPAnalysisRecord
         return ( EvaluationMachine != null && IpEndPointTable != null );
     }
 
-    Queue<TimeFlow> timeFlowQueue = new Queue<TimeFlow>();
+    //Queue<TimeFlow> timeFlowQueue = new Queue<TimeFlow>();
     public void AddRecord(TimeFlow record)
     {
         if (EvaluatingTimeRecords == null)
             EvaluatingTimeRecords = new List<TimeFlow>();
 
-        timeFlowQueue.Enqueue(record);
-        EvaluatingTimeRecords.Add(record);
+        //timeFlowQueue.Enqueue(record);
+        if (record == null)
+            return;
+        else
+            EvaluatingTimeRecords.Add(record);
     }
 
     public void CutAndEvaluate(bool showDebugLog = false)
     {
+        UnityEngine.Debug.Log("[CutAndEvaluate] Thread ID : " + System.Threading.Thread.CurrentThread.ManagedThreadId);
         List<TimeFlow> _records = new List<TimeFlow>();
-        try
-        {
-            _records.AddRange(EvaluatingTimeRecords);
-        }
-        catch (System.Exception errLog)
-        {
-            UnityEngine.Debug.Log(errLog);
-            return;
-        }
+        //try
+        //{
+        //    _records.AddRange(EvaluatingTimeRecords);
+        //}
+        //catch (System.Exception errLog)
+        //{
+        //    UnityEngine.Debug.Log(errLog);
+        //    return;
+        //}
+        _records.AddRange(EvaluatingTimeRecords);
 
         TotalNtpTimeRecords.AddRange(EvaluatingTimeRecords);
         EvaluatingTimeRecords = new List<TimeFlow>();
@@ -110,8 +115,21 @@ public class NTPAnalysisRecord
         if (TotalNtpTimeRecords == null || TotalNtpTimeRecords.Count <= 0)
             return;
 
-        _bestNtpTimeRecord = TotalNtpTimeRecords
-            .Where(x => x.NTPServerName == bestServer)
-            .ToList();
+        foreach (TimeFlow record in TotalNtpTimeRecords)
+        {
+            try
+            {
+                if (record.NTPServerName == bestServer)
+                    _bestNtpTimeRecord.Add(record);
+            }
+            catch (System.Exception e)
+            {
+                UnityEngine.Debug.Log(e);
+            }
+
+        }
+        //_bestNtpTimeRecord = TotalNtpTimeRecords
+        //    .Where(x => x.NTPServerName == bestServer)
+        //    .ToList();
     }
 }

@@ -6,9 +6,11 @@ using UnityEngine.UI;
 public class NTPTimeTester : MonoBehaviour
 {
     [Header("請求頻率")]
+    [Range(0.01f, 10f)]
     public float connectFreq;
 
     [Header("NTP Server評分前觀察次數")]
+    [Range(1, 10)]
     public int evaluationThreshold;
 
     public Text txt_ntpLabel;

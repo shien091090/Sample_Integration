@@ -24,15 +24,7 @@ public class NTPServerEvaluation
             return null;
 
         List<TimeFlow> _records = new List<TimeFlow>();
-        try
-        {
-            _records.AddRange(timeFlowRecords);
-        }
-        catch (System.Exception errLog)
-        {
-            Debug.Log(errLog);
-            return null;
-        }
+        _records.AddRange(timeFlowRecords);
 
         if (EvaluationScoreTable == null)
             EvaluationScoreTable = new Dictionary<string, float>();

@@ -681,9 +681,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5930a04194341c8499fd886093baa393, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  connectFreq: 0
-  evaluationThreshold: 0
-  txt_ntpLabel: {fileID: 0}
+  connectFreq: 0.02
+  evaluationThreshold: 5
+  txt_ntpLabel: {fileID: 1576721230}
 --- !u!4 &1181346968
 Transform:
   m_ObjectHideFlags: 0

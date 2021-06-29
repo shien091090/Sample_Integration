@@ -12,6 +12,7 @@ public class TimeFlow
     public string Log { private set; get; }
     public string NTPServerName { private set; get; }
     public string NTPServerAddress { private set; get; }
+    public int ThreadID { private set; get; }
 
     public TimeFlowState GetState
     {
@@ -65,11 +66,12 @@ public class TimeFlow
         }
     }
 
-    public TimeFlow(ulong timeStamp, string serverName, string serverAddress)
+    public TimeFlow(ulong timeStamp, string serverName, string serverAddress, int threadId)
     {
         ClientSendTimeStamp = timeStamp;
         NTPServerName = serverName;
         NTPServerAddress = serverAddress;
+        ThreadID = threadId;
 
         IsFlowComplete = false;
     }
