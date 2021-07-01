@@ -364,7 +364,7 @@ public class ComponentFinder : EditorWindow
         subWindow.Show();
     }
 
-    public static string GetHightlightPathString(string fullPath, string parentPath)
+    private static string GetHightlightPathString(string fullPath, string parentPath)
     {
         string _mainPath = fullPath.Replace(parentPath, string.Empty);
         int _rejectCharIndex = _mainPath.LastIndexOf("/");
@@ -375,7 +375,7 @@ public class ComponentFinder : EditorWindow
         return _result;
     }
 
-    public static string GetParentFolderPath(string fullPath)
+    private static string GetParentFolderPath(string fullPath)
     {
         string result = fullPath;
         int slashIndex = result.LastIndexOf("/");
