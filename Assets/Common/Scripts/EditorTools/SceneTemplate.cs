@@ -28,7 +28,7 @@ public static class SceneTemplate
         public Action<Component> metaSetting;
     }
 
-    [MenuItem("CreateTemplateScene/TesterButton")]
+    [MenuItem("SNTool/CreateTemplateScene/TesterButton")]
     public static void CreateTemplateScene_ButtonTester()
     {
         GameObject _canvasGo = PushComponent("Canvas_Main", null,
