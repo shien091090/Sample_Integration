@@ -69,7 +69,6 @@ public class ComponentFinder : EditorWindow
         public int space_componentField;
         public int space_backgroundInside;
         public int space_backgroundInterval;
-        //public int space_resultLabelBelow;
         public int limit_filterButtonCount;
 
         public string styleName_panelBackground;
@@ -99,16 +98,15 @@ public class ComponentFinder : EditorWindow
         }
     }
 
-    private static string _assetsfolder = @"Assets/SourceFiles";
+    private static string _assetsfolder = @"Assets";
     private static int typeSearchResultMax = 10;
     private static ComponentFinder componentFinder_Window;
     private static ComponentFinder_ResultView subWindow;
 
     private static string currentSearchTypeName;
     private static TypeNameSearchResult typeNameSearchData;
-    private Vector2 _scrollPos = Vector2.zero;
 
-    [MenuItem("Jumbo/ComponentFinder")]
+    [MenuItem("SNTool/ComponentFinder")]
     private static void Init()
     {
         InitSearchData();
@@ -128,11 +126,10 @@ public class ComponentFinder : EditorWindow
 
         _customGui.space_componentField = 18;
         _customGui.space_backgroundInside = 15;
-        _customGui.space_backgroundInterval = 10;
-        //_customGui.space_resultLabelBelow = 15;
+        _customGui.space_backgroundInterval = 5;
         _customGui.limit_filterButtonCount = 3;
 
-        _customGui.styleName_panelBackground = "PopupCurveSwatchBackground";
+        _customGui.styleName_panelBackground = "AnimLeftPaneSeparator";
 
         _customGui.searchField_option = new GUILayoutOption[] { GUILayout.Height(23), GUILayout.Width(110) };
         _customGui.searchField_style = new GUIStyle("TextField") { alignment = TextAnchor.MiddleLeft };
@@ -148,7 +145,7 @@ public class ComponentFinder : EditorWindow
 
         _customGui.prefabPath_style = new GUIStyle("Label") { richText = true };
 
-        _customGui.componentField_option = new GUILayoutOption[] { GUILayout.Width(200) };
+        _customGui.componentField_option = new GUILayoutOption[] { };
 
         _customGui.filterButton_option = new GUILayoutOption[] { GUILayout.Width(130) };
 
@@ -173,7 +170,7 @@ public class ComponentFinder : EditorWindow
             subWindow.Close();
     }
 
-    private void Layout_SearchTypeName()
+    private static void Layout_SearchTypeName()
     {
         EditorGUILayout.BeginHorizontal();
 
@@ -188,7 +185,6 @@ public class ComponentFinder : EditorWindow
         {
             Assembly[] _targetAssemblies = GetAssembliesByType(
                 typeof(Button),
-                //typeof(InfiniteScroll),
                 typeof(TMPro.TextMeshProUGUI),
                 typeof(MonoBehaviour));
 
@@ -214,7 +210,7 @@ public class ComponentFinder : EditorWindow
         }
     }
 
-    private Assembly[] GetAssembliesByType(params Type[] _types)
+    private static Assembly[] GetAssembliesByType(params Type[] _types)
     {
         List<Assembly> _assemblyList = new List<Assembly>();
 
@@ -239,7 +235,7 @@ public class ComponentFinder : EditorWindow
         return _assemblyList.ToArray();
     }
 
-    private Type[] FindTypesByAssemblies(string searchName, params Assembly[] _assemblies)
+    private static Type[] FindTypesByAssemblies(string searchName, params Assembly[] _assemblies)
     {
         List<Type> _filterResult = new List<Type>();
 
@@ -277,7 +273,7 @@ public class ComponentFinder : EditorWindow
 
     }
 
-    private void FillUpTypeList(List<Type> target, List<Type> source, int maxLength)
+    private static void FillUpTypeList(List<Type> target, List<Type> source, int maxLength)
     {
         if (target == null)
             target = new List<Type>();
@@ -297,7 +293,7 @@ public class ComponentFinder : EditorWindow
         }
     }
 
-    private void ShowTypeNameSelection(Type[] searchResultTypes)
+    private static void ShowTypeNameSelection(Type[] searchResultTypes)
     {
         if (searchResultTypes == null || searchResultTypes.Length <= 0)
             return;
@@ -313,7 +309,7 @@ public class ComponentFinder : EditorWindow
         }
     }
 
-    private void FindCompoment(Type searchType, Action<PrefabSearchResult> callBack)
+    private static void FindCompoment(Type searchType, Action<PrefabSearchResult> callBack)
     {
         PrefabSearchResult _resultData = new PrefabSearchResult();
 
@@ -325,7 +321,6 @@ public class ComponentFinder : EditorWindow
         foreach (string guid in guids)
         {
             string prefabPath = AssetDatabase.GUIDToAssetPath(guid);
-            //string hightlightPath = GetHightlightPathString(prefabPath, _assetsfolder);
             GameObject obj_root = AssetDatabase.LoadAssetAtPath(prefabPath, typeof(GameObject)) as GameObject;
             Component[] componentInPrefab = obj_root.GetComponentsInChildren(searchType, true)
                 .Where(x => x.GetType() == searchType)
@@ -361,11 +356,11 @@ public class ComponentFinder : EditorWindow
             callBack.Invoke(_resultData);
     }
 
-    private void ShowResultWindow(PrefabSearchResult resultData)
+    private static void ShowResultWindow(PrefabSearchResult resultData)
     {
         subWindow = GetWindow<ComponentFinder_ResultView>(true, "Search Result");
         subWindow.minSize = new Vector2(420, 700);
-        subWindow.ResultData = resultData;
+        ComponentFinder_ResultView.ResultData = resultData;
         subWindow.Show();
     }
 

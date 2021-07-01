@@ -15,15 +15,15 @@ public class ComponentFinder_ResultView : EditorWindow
         需全部符合
     }
 
-    public ComponentFinder.PrefabSearchResult ResultData { set; private get; }
+    public static ComponentFinder.PrefabSearchResult ResultData { set; private get; }
 
     private const string FOCUS_FILTER_BUTTON = "FOCUS_FILTER_BUTTON";
-    private Vector2 _scrollPos = Vector2.zero;
-    private List<string> filterStringList;
-    private string[] filterTypeNames;
+    private static Vector2 _scrollPos = Vector2.zero;
+    private static List<string> filterStringList;
+    private static string[] filterTypeNames;
 
-    private string filterString;
-    private int filterTypeIndex;
+    private static string filterString;
+    private static int filterTypeIndex;
 
     private void OnGUI()
     {
@@ -39,7 +39,7 @@ public class ComponentFinder_ResultView : EditorWindow
             ResultData = null;
     }
 
-    private void ShowSearchResultLayout(ComponentFinder.PrefabSearchResult data)
+    private static void ShowSearchResultLayout(ComponentFinder.PrefabSearchResult data)
     {
         if (data.Dict_searchResult == null || data.Dict_searchResult.Count <= 0)
             return;
@@ -73,7 +73,7 @@ public class ComponentFinder_ResultView : EditorWindow
 
     }
 
-    private void ShowFilterPanel()
+    private static void ShowFilterPanel()
     {
         ComponentFinder.CustomGUISetting customGui = ComponentFinder.CustomGUI;
 
@@ -104,7 +104,7 @@ public class ComponentFinder_ResultView : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
-    private void ShowFilterTypeDropdown()
+    private static void ShowFilterTypeDropdown()
     {
         if (filterTypeNames == null || filterTypeNames.Length <= 0)
             filterTypeNames = Enum.GetNames(typeof(FilterType));
@@ -113,7 +113,7 @@ public class ComponentFinder_ResultView : EditorWindow
 
     }
 
-    private void AddFilterStringButton(string filterStr, Action<string> failedCallback)
+    private static void AddFilterStringButton(string filterStr, Action<string> failedCallback)
     {
         if (string.IsNullOrEmpty(filterStr))
         {
@@ -134,19 +134,19 @@ public class ComponentFinder_ResultView : EditorWindow
         ClearFilterStringTextField();
     }
 
-    private void FilterStringErrorPopUp(string message)
+    private static void FilterStringErrorPopUp(string message)
     {
         EditorUtility.DisplayDialog("輸入錯誤", message, "確定");
         ClearFilterStringTextField();
     }
 
-    private void ClearFilterStringTextField()
+    private static void ClearFilterStringTextField()
     {
         filterString = string.Empty;
         EditorGUI.FocusTextInControl(FOCUS_FILTER_BUTTON);
     }
 
-    private void ShowResultLabel(string componentName, int prefabCount, int componentCount)
+    private static void ShowResultLabel(string componentName, int prefabCount, int componentCount)
     {
         ComponentFinder.CustomGUISetting customGui = ComponentFinder.CustomGUI;
 
@@ -164,7 +164,7 @@ public class ComponentFinder_ResultView : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
-    private void ShowFilterStringButton()
+    private static void ShowFilterStringButton()
     {
         if (filterStringList == null || filterStringList.Count <= 0)
             return;
@@ -189,7 +189,7 @@ public class ComponentFinder_ResultView : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
-    private bool CheckFilter(string prefabName, string path)
+    private static bool CheckFilter(string prefabName, string path)
     {
         if (filterStringList == null || filterStringList.Count <= 0)
             return true;
@@ -221,11 +221,11 @@ public class ComponentFinder_ResultView : EditorWindow
             case FilterType.需全部符合:
                 return true;
         }
-       
+
         return false;
     }
 
-    private void ShowPrefabFocusButton(string prefabName, UnityEngine.Object projectObject)
+    private static void ShowPrefabFocusButton(string prefabName, UnityEngine.Object projectObject)
     {
         ComponentFinder.CustomGUISetting customGui = ComponentFinder.CustomGUI;
 
@@ -235,21 +235,21 @@ public class ComponentFinder_ResultView : EditorWindow
         }
     }
 
-    private void ShowPathLabel(string path)
+    private static void ShowPathLabel(string path)
     {
         ComponentFinder.CustomGUISetting customGui = ComponentFinder.CustomGUI;
 
-        EditorGUILayout.LabelField(path, customGui.prefabPath_style);
+        EditorGUILayout.LabelField("Prefab路徑", path, customGui.prefabPath_style);
     }
 
-    private void ShowComponentsField(List<Component> comps)
+    private static void ShowComponentsField(List<Component> comps)
     {
         ComponentFinder.CustomGUISetting customGui = ComponentFinder.CustomGUI;
 
         for (int i = 0; i < comps.Count; ++i)
         {
             Component tmp_comp = comps[i];
-            tmp_comp = EditorGUILayout.ObjectField(tmp_comp, typeof(Component), true, customGui.componentField_option) as Component;
+            tmp_comp = EditorGUILayout.ObjectField("物件", tmp_comp, typeof(Component), true, customGui.componentField_option) as Component;
         }
     }
 
