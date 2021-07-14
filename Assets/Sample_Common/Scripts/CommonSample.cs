@@ -32,7 +32,7 @@ public class CommonSample : MonoBehaviour
     public List<int> pillCost;
     public List<StationRewardSetting> stationRewardSetting;
 
-    private MapStationGame MapStationGameModel;
+    public MapStationGame MapStationGameModel;
 
     void Start()
     {

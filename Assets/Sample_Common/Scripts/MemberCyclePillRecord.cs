@@ -26,6 +26,14 @@ public class MemberCyclePillRecord
         pillCount += count;
     }
 
+    public void SubtractPill(int count)
+    {
+        if (count > pillCount || count < 0)
+            Debug.Log("[ERROR] 仙丹減去數量錯誤");
+
+        pillCount = Mathf.Clamp(pillCount - count, 0, PillManager.DAY_PILL_LIMIT);
+    }
+
     public MemberCyclePillRecord(int _cycleNum)
     {
         cycleNum = _cycleNum;
