@@ -193,6 +193,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97566404dd21f5a4590c8575704df615, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  getPillCount: 0
+  currentDay: 0
+  activityStartDay: 0
+  activityEndDay: 0
+  KeepDayCount: 0
+  nowStationId: 1
+  nowPillCount: 0
+  regionSort: 000000000100000002000000
+  regionRangeSetting:
+  - bottom: 0
+    upper: 7
+  - bottom: 7
+    upper: 19
+  - bottom: 19
+    upper: 30
+  pillCost: 030000000600000009000000
+  stationRewardSetting:
+  - stationId: 5
+    rewardInfo:
+      goldAmount: 1
+      gemAmount: 1
+      itemId: 1
+  - stationId: 10
+    rewardInfo:
+      goldAmount: 2
+      gemAmount: 2
+      itemId: 2
 --- !u!1 &417011324
 GameObject:
   m_ObjectHideFlags: 0

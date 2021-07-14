@@ -11,11 +11,22 @@ public class CommonSample : MonoBehaviour
 
     public int getPillCount;
 
+    [Header("ActivityData")]
+    public int currentDay;
+
+    [Header("ActivitySetting")]
+    public ActivityTimeSetting activityTimeSetting;
+
     [Header("MemberData")]
     public int nowStationId;
-    public int nowPillCount;
+    public List<MemberCyclePillRecord> memberPillRecord;
 
-    [Header("MapSetting ")]
+    [Header("PillSetting")]
+    public List<AccumulationPillThresHold> betThresHoldSetting;
+    public List<int> scoreThresHoldSetting;
+    public List<VipFreePillSetting> vipFreePillSetting;
+
+    [Header("MapSetting")]
     public List<int> regionSort;
     public List<RegionRangeInfo> regionRangeSetting;
     public List<int> pillCost;
@@ -36,7 +47,7 @@ public class CommonSample : MonoBehaviour
             string _log = "=== 測試用操作說明 ====\n";
             _log += "F2 : Model Init\n";
             _log += string.Format("F3 : 取得仙丹 {0} 個\n", getPillCount);
-            _log += "F4 : 前進\n";
+            _log += "F4 : Test\n";
 
             Debug.Log(_log);
         }
@@ -44,8 +55,8 @@ public class CommonSample : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F2))
             MapStationGameModel = new MapStationGame();
 
-        if (Input.GetKeyDown(KeyCode.F3))
-            MapStationGameModel.AddPill(getPillCount);
+        //if (Input.GetKeyDown(KeyCode.F3))
+        //MapStationGameModel.AddPill(getPillCount);
 
         if (Input.GetKeyDown(KeyCode.F4))
         {
@@ -60,4 +71,27 @@ public class StationRewardSetting
 {
     public int stationId;
     public StationRewardInfo rewardInfo;
+}
+
+[System.Serializable]
+public class VipFreePillSetting
+{
+    public VIPLevel vipType;
+    public int freePillCount;
+}
+
+[System.Serializable]
+public class AccumulationPillThresHold
+{
+    public BetHall betType;
+    public int bottom;
+    public int upper;
+}
+
+[System.Serializable]
+public class ActivityTimeSetting
+{
+    public int activityStartDay;
+    public int activityEndDay;
+    public int KeepDayCount;
 }

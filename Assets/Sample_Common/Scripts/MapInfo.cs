@@ -6,21 +6,26 @@ using UnityEngine;
 
 public class MapInfo
 {
+    public static Action<int> OnPlayerPosUpdated;
+    public static Action<Dictionary<int, StationRewardInfo>> OnStationRewardUpdated;
+
     public List<RegionInfo> regionData;
-    public Action<int> OnPlayerPosUpdated;
-    public Action<Dictionary<int, StationRewardInfo>> OnStationRewardUpdated;
+    public int currentStationId;
     public int GetMaxRegionNum { private set; get; }
 
-    public MapInfo(int maxRegionId, List<RegionRangeInfo> regionRangeSetting, List<int> pillCostInfo, List<StationRewardSetting> rewardSetting)
+    public static MapInfo InitMap(int maxRegionId, List<RegionRangeInfo> regionRangeSetting, List<int> pillCostInfo, List<StationRewardSetting> rewardSetting)
     {
+        MapInfo _resultMap = new MapInfo();
+
         if (regionRangeSetting == null || pillCostInfo == null)
-            return;
+            return null;
 
         if (regionRangeSetting.Count < maxRegionId + 1 || pillCostInfo.Count < maxRegionId + 1)
-            return;
+            return null;
 
         OnPlayerPosUpdated = null;
-        GetMaxRegionNum = maxRegionId;
+        OnStationRewardUpdated = null;
+        _resultMap.GetMaxRegionNum = maxRegionId;
 
         List<RegionInfo> _regionData = new List<RegionInfo>();
         for (int i = 0; i <= maxRegionId; i++)
@@ -44,10 +49,12 @@ public class MapInfo
         dict_rewardInfo = rewardSetting.ToDictionary(reward => reward.stationId, reward => reward.rewardInfo);
         OnStationRewardUpdated.Invoke(dict_rewardInfo);
 
-        regionData = _regionData;
+        _resultMap.regionData = _regionData;
+
+        return _resultMap;
     }
 
-    private List<StationInfo> BuildStationList(int _regionId, RegionRangeInfo _rangeInfo, int _cost)
+    private static List<StationInfo> BuildStationList(int _regionId, RegionRangeInfo _rangeInfo, int _cost)
     {
         List<StationInfo> _result = new List<StationInfo>();
 
@@ -124,10 +131,12 @@ public class MapInfo
         return -1;
     }
 
-    public void UpdateMap(int currentStationId)
+    public void UpdateCurrentStationAndMapState(int updateStaionId)
     {
+        currentStationId = updateStaionId;
+
         if (OnPlayerPosUpdated != null)
-            OnPlayerPosUpdated.Invoke(currentStationId);
+            OnPlayerPosUpdated.Invoke(updateStaionId);
     }
 
 }
