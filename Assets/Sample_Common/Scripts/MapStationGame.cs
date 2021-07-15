@@ -91,7 +91,7 @@ public class MapStationGame
         List<int> _scoreThresHoldSetting = CommonSample.Instance.scoreThresHoldSetting;
         List<VipFreePillSetting> _vipFreePillSetting = CommonSample.Instance.vipFreePillSetting;
 
-        pillInfo = PillManager.InitPillManagerSetting(_betThresHoldSetting, _scoreThresHoldSetting, _vipFreePillSetting);
+        pillInfo = new PillManager(_betThresHoldSetting, _scoreThresHoldSetting, _vipFreePillSetting);
 
         callback.Invoke(pillInfo);
     }

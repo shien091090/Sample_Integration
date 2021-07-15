@@ -6,60 +6,46 @@ using UnityEngine;
 
 public class MapInfo
 {
-    public static Action<int> OnPlayerPosUpdated;
-    public static Action<Dictionary<int, StationRewardInfo>> OnStationRewardUpdated;
-
+    public Action<int> OnPlayerPosUpdated;
+    public Action<Dictionary<int, StationRewardInfo>> OnStationRewardUpdated;
     public List<RegionInfo> regionData;
+    public List<StationInfo> stationData;
+
     public int currentStationId;
     public int GetMaxRegionNum { private set; get; }
+    public int GoalStationId { private set; get; }
 
-    public static MapInfo InitMap(int maxRegionId, List<RegionRangeInfo> regionRangeSetting, List<int> pillCostInfo, List<StationRewardSetting> rewardSetting)
+    public MapInfo(List<RegionInfo> regionSetting, List<StationRewardSetting> rewardSetting)
     {
-        MapInfo _resultMap = new MapInfo();
-
-        if (regionRangeSetting == null || pillCostInfo == null)
-            return null;
-
-        if (regionRangeSetting.Count < maxRegionId + 1 || pillCostInfo.Count < maxRegionId + 1)
-            return null;
+        if (regionSetting == null)
+            return;
 
         OnPlayerPosUpdated = null;
         OnStationRewardUpdated = null;
-        _resultMap.GetMaxRegionNum = maxRegionId;
 
-        List<RegionInfo> _regionData = new List<RegionInfo>();
-        for (int i = 0; i <= maxRegionId; i++)
+        regionData = regionSetting;
+        GetMaxRegionNum = regionSetting.Count - 1;
+        GoalStationId = regionSetting[regionSetting.Count - 1].upper;
+
+        stationData = new List<StationInfo>();
+        for (int i = 0; i < regionSetting.Count; i++)
         {
-            int _regionId = i;
-            RegionRangeInfo _rangeInfo = regionRangeSetting[_regionId];
-            int _cost = pillCostInfo[_regionId];
-            List<StationInfo> _stations = BuildStationList(i, _rangeInfo, _cost);
-
-            RegionInfo _region = new RegionInfo();
-            _region.regionId = _regionId;
-            _region.rangeInfo = _rangeInfo;
-            _region.stationData = _stations;
-
-            OnPlayerPosUpdated += _region.UpdatePosToUnlockRegion;
-
-            _regionData.Add(_region);
+            List<StationInfo> _stations = BuildStationList(i, regionSetting[i]);
+            stationData.AddRange(_stations);
         }
 
         Dictionary<int, StationRewardInfo> dict_rewardInfo = new Dictionary<int, StationRewardInfo>();
         dict_rewardInfo = rewardSetting.ToDictionary(reward => reward.stationId, reward => reward.rewardInfo);
         OnStationRewardUpdated.Invoke(dict_rewardInfo);
-
-        _resultMap.regionData = _regionData;
-
-        return _resultMap;
     }
 
-    private static List<StationInfo> BuildStationList(int _regionId, RegionRangeInfo _rangeInfo, int _cost)
+    private List<StationInfo> BuildStationList(int _regionId, RegionInfo _rangeInfo)
     {
-        List<StationInfo> _result = new List<StationInfo>();
+        List<StationInfo> _resultStations = new List<StationInfo>();
 
         int _stationCount = _rangeInfo.GetStationCount();
         int _startId = _rangeInfo.bottom + 1;
+        int _cost = _rangeInfo.pillCost;
 
         for (int i = 0; i < _stationCount; i++)
         {
@@ -72,71 +58,106 @@ public class MapInfo
             OnPlayerPosUpdated += _station.UpdatePosToUnlockStation;
             OnStationRewardUpdated += _station.UpdateRewardContent;
 
-            _result.Add(_station);
+            _resultStations.Add(_station);
         }
 
-        return _result;
+        return _resultStations;
     }
 
-
-
-    //Debug
-    public void PrintMapInfo()
+    private bool IsRegionUnlock(int regionId)
     {
-        //string _log = "=== PrintMapInfo ===\n";
-
-        ////_log += string.Format();
-        //_log += "--- Map簡易資訊 ---\n";
-        //_log += string.Format("共 {0} 個Region\n");
-        //_log += string.Format("Region {0} : 共 {1} 個Station, Cost {2} Pill\n");
-
-        //_log = "--- Map解鎖 ---\n";
-        //_log += string.Format("Region {0} : {1}");
-
-        //_log = "--- Station解鎖 ---\n";
-        //_log += string.Format("Region-Station {0} : {1}");
-    }
-
-    public bool IsRegionUnlock(int regionId)
-    {
-        RegionInfo[] _filterRegionInfo = regionData
-            .Where(x => x.regionId == regionId)
-            .ToArray();
-
-        if (_filterRegionInfo.Length != 1)
-        {
-            Debug.Log("[ERROR] Region取得數量錯誤 : " + _filterRegionInfo.Length);
+        if (regionId <= 0 || regionId > regionData.Count - 1)
             return false;
+
+        RegionInfo _targetRegion = regionData[regionId];
+        int _lastStationId = _targetRegion.upper;
+
+        foreach (StationInfo _station in stationData)
+        {
+            if (_station.stationId > _lastStationId)
+                break;
+
+            if (!_station.isStationUnlocked)
+                return false;
         }
 
-        return _filterRegionInfo[0].isRegionUnlocked;
+        return true;
     }
 
-    public int GetRegionIdByStationId(int stationId)
+    private int GetRegionIdByStationId(int stationId)
     {
-        if (regionData == null || regionData.Count <= 0)
-            return -1;
-
         for (int i = 0; i < regionData.Count; i++)
         {
-            int _upp = regionData[i].rangeInfo.upper;
-            int _bot = regionData[i].rangeInfo.bottom;
+            int _upp = regionData[i].upper;
+            int _bot = regionData[i].bottom;
 
             if (_bot < stationId && stationId <= _upp)
             {
-                return regionData[i].regionId;
+                return i;
             }
         }
 
         return -1;
     }
 
-    public void UpdateCurrentStationAndMapState(int updateStaionId)
+    private void UpdateCurrentStationAndMapState(int updateStaionId)
     {
         currentStationId = updateStaionId;
 
         if (OnPlayerPosUpdated != null)
             OnPlayerPosUpdated.Invoke(updateStaionId);
+    }
+
+    private List<StationRewardInfo> GetRewardContentsAfterMove(int stepCount)
+    {
+        List<StationRewardInfo> _rewardContents = new List<StationRewardInfo>();
+
+        if (stepCount <= 0)
+            return _rewardContents;
+
+        Dictionary<int, StationInfo> parseDictStationInfo = stationData.ToDictionary(info => info.stationId);
+        for (int i = currentStationId + 1; i <= currentStationId + stepCount; i++)
+        {
+            if (!parseDictStationInfo.ContainsKey(i))
+                break;
+
+            StationInfo _station = parseDictStationInfo[i];
+            StationRewardInfo _reward = _station.rewardContent;
+
+            if (_reward != null)
+                _rewardContents.Add(_reward);
+        }
+
+        return _rewardContents;
+    }
+
+    private Queue<StepMovement> GetMovementQueueAfterMove(int stepCount)
+    {
+        Queue<StepMovement> _resultQueue = new Queue<StepMovement>();
+
+        if (stepCount <= 0)
+            return _resultQueue;
+
+        Dictionary<int, StationInfo> parseDictStationInfo = stationData.ToDictionary(info => info.stationId);
+        for (int i = currentStationId + 1; i <= currentStationId + stepCount; i++)
+        {
+            StepMovement _movement = new StepMovement();
+
+            StationInfo _station = parseDictStationInfo[i];
+            int _currentRegion = GetRegionIdByStationId(i);
+            int _lastStation = regionData[_currentRegion].upper;
+
+            _movement.isCrossRegion = i == _lastStation;
+            _movement.isReachGoal = i == GoalStationId;
+            _movement.reward = _station.rewardContent;
+
+            _resultQueue.Enqueue(_movement);
+
+            if (_movement.isReachGoal)
+                break;
+        }
+
+        return _resultQueue;
     }
 
 }

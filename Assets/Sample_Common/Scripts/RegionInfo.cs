@@ -2,16 +2,30 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
 public class RegionInfo
 {
-    public int regionId;
-    public bool isRegionUnlocked;
-    public List<StationInfo> stationData;
-    public RegionRangeInfo rangeInfo;
+    public int pillCost;
+    public int bottom;
+    public int upper;
 
-    public void UpdatePosToUnlockRegion(int newStationId)
+    public RegionInfo(int bot, int upp, int pillCost)
     {
-        if (newStationId > rangeInfo.upper)
-            isRegionUnlocked = true;
+        if (upp <= bot)
+        {
+            Debug.Log("[ERROR] RegionRange範圍設定錯誤");
+            return;
+        }
+
+        bottom = bot;
+        upper = upp;
+    }
+
+    public int GetStationCount()
+    {
+        int _result = upper - bottom;
+        _result = Mathf.Clamp(_result, 0, int.MaxValue);
+
+        return _result;
     }
 }
