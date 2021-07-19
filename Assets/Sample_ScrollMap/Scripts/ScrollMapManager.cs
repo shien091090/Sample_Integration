@@ -1,11 +1,25 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ScrollMapManager : MonoBehaviour
 {
-    public void PrintMapPos(Vector2 pos)
+    public ScrollMap scrollMap;
+    public RectTransform[] lockObjects;
+
+    public int lockNumber;
+
+    private void Start()
     {
-        Debug.Log(string.Format("Pos({0}, {1})", pos.x, pos.y));
+        if (scrollMap != null && lockObjects != null)
+            scrollMap.SetLockPos(lockObjects);
     }
+
+    [ContextMenu("Unlock")]
+    public void TEST_Unlock()
+    {
+        scrollMap.Unlock(lockNumber);
+    }
+
 }
