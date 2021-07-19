@@ -34,7 +34,7 @@ public class ScrollMap : ScrollRect
         {
             RectTransform _rect = lockObjects[i];
 
-            float _scrollAreaLength = rect_fullMap.sizeDelta.y - _rect.sizeDelta.y;
+            float _scrollAreaLength = rect_fullMap.sizeDelta.y - rect_scrollArea.sizeDelta.y;
             float _lockObjectPos = _rect.localPosition.y - rect_scrollArea.sizeDelta.y;
             float _lockPos = _lockObjectPos / _scrollAreaLength;
             _lockPosList.Add(Mathf.Clamp(_lockPos, 0, 1));
@@ -57,6 +57,9 @@ public class ScrollMap : ScrollRect
 
     private void AutoLock(Vector2 pos)
     {
+        if (dict_lockPos == null)
+            return;
+
         float[] lockPosArray = dict_lockPos.Values.ToArray();
 
         for (int i = 0; i < lockPosArray.Length; i++)
