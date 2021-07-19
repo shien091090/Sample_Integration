@@ -10,6 +10,9 @@ public class MapStationGame
     public MapStationActivityState activityState;
     public MapInfo mapInfo;
 
+    public Action<int> OnDayUpdated;
+    public Action<ActivityState> OnActivityStateUpdated;
+
     //Model Init
     public MapStationGame()
     {
@@ -79,9 +82,38 @@ public class MapStationGame
         int _currentDay = CommonSample.Instance.currentDay;
         ActivityTimeSetting _activitySetting = CommonSample.Instance.activityTimeSetting;
 
-        activityState = MapStationActivityState.InitActivityState(_currentDay, _activitySetting);
+        MapStationActivityState _activityState = MapStationActivityState.InitActivityState(_currentDay, _activitySetting);
 
-        callback.Invoke(activityState);
+        callback.Invoke(_activityState);
+    }
+
+    private void CheckAndUpdateActivityState()
+    {
+        RequestActivityState((activityInfoRes)=> 
+        {
+            //Check Error Code
+            if (activityInfoRes == null)
+            {
+                activityState = null;
+                return;
+            }
+
+            bool _updateDay = 
+            activityState == null ||
+            activityState.currentCycleNum != activityInfoRes.currentCycleNum;
+
+            bool _updateState =
+            activityState == null ||
+            activityState.currentState != activityInfoRes.currentState;
+
+            activityState = activityInfoRes;
+            if (_updateDay)
+                OnDayUpdated(activityState.currentCycleNum);
+
+            if (_updateState)
+                OnActivityStateUpdated(activityState.currentState);
+
+        });
     }
 
     private void RequestPillSetting(Action<PillManager> callback)

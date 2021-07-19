@@ -28,7 +28,7 @@ public class CommonSample : MonoBehaviour
 
     [Header("MapSetting")]
     public List<int> regionSort;
-    public List<RegionRangeInfo> regionRangeSetting;
+    public List<RegionInfo> regionRangeSetting;
     public List<int> pillCost;
     public List<StationRewardSetting> stationRewardSetting;
 
