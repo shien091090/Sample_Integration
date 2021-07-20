@@ -5,21 +5,61 @@ using UnityEngine.UI;
 
 public class ScrollMapManager : MonoBehaviour
 {
-    public ScrollMap scrollMap;
-    public RectTransform[] lockObjects;
+    private static ScrollMapManager _instance;
+    public static ScrollMapManager Instance { get { return _instance; } }
 
-    public int lockNumber;
+    public ScrollMapView viewManager;
+    public List<StationInfo> stationsData;
+    public int currentStaionId;
+    public int maxRegionNum;
+    public List<int> lockInStationId;
+    public List<StepPerformanceInfo> performanceInfos;
 
-    private void Start()
+    void Start()
     {
-        if (scrollMap != null && lockObjects != null)
-            scrollMap.SetLockPos(lockObjects);
+        if (_instance == null)
+            _instance = this;
+
+        TEST_InitScrollMap();
     }
 
-    [ContextMenu("Unlock")]
-    public void TEST_Unlock()
+    [ContextMenu("InitScrollMap")]
+    public void TEST_InitScrollMap()
     {
-        scrollMap.Unlock(lockNumber);
+        if (Application.isPlaying)
+            viewManager.SetupScrollMap(stationsData, currentStaionId);
+    }
+
+    [ContextMenu("PlayMovingAction")]
+    public void TEST_PlayMovingAction()
+    {
+        if (Application.isPlaying)
+        {
+            Queue<StepPerformanceInfo> performancesQueue = new Queue<StepPerformanceInfo>();
+
+            for (int i = 0; i < performanceInfos.Count; i++)
+            {
+                performancesQueue.Enqueue(performanceInfos[i]);
+            }
+
+            viewManager.PlayMovingAction(performancesQueue);
+        }
+            
+    }
+
+    public int GetUnlockRegionNum(int stationId)
+    {
+        int _unlockNum = -1;
+
+        for (int i = 0; i < lockInStationId.Count; i++)
+        {
+            if (stationId >= lockInStationId[i])
+                _unlockNum = i;
+            else
+                break;
+        }
+
+        return _unlockNum;
     }
 
 }
