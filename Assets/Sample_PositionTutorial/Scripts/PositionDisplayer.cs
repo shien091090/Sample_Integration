@@ -4,6 +4,7 @@ using UnityEngine.UI;
 public class PositionDisplayer : MonoBehaviour
 {
     [SerializeField] private RectTransform pivotObjPos;
+    [SerializeField] private RectTransform parentObj;
 
     private Text _txt;
     private Text Txt
@@ -43,9 +44,12 @@ public class PositionDisplayer : MonoBehaviour
 
     private void SetPivotObjPos()
     {
-        Vector2 _pivotPositivePos = OwnRect.sizeDelta * OwnRect.pivot;
-        Debug.Log(_pivotPositivePos);
-        pivotObjPos.localPosition = _pivotPositivePos;
+        Vector3 _newPos = OwnRect.localPosition;
+
+        if (parentObj != null)
+            _newPos += parentObj.localPosition;
+
+        pivotObjPos.localPosition = _newPos;
     }
 
 }
