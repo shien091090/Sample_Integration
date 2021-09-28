@@ -6,17 +6,9 @@ using System;
 
 public class CommonSample : MonoBehaviour
 {
-    public Button button;
-
-    public void BTN_A()
+    public void TestA()
     {
-        Debug.Log("BTN_A");
-        Destroy(button.gameObject);
-    }
-
-    public void BTN_B()
-    {
-        Debug.Log("BTN_B");
+        Debug.Log("TestA");
     }
 
 }
